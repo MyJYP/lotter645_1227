@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+output/charts/*.png
+output/reports/*.md
+images/
+*.html
+
+# 민감한 정보
+.env
+credentials.json
+config.ini
+
+# 로그
+*.log
+
+# 임시 파일
+tmp/
+temp/
