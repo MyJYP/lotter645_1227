@@ -38,7 +38,11 @@ st.set_page_config(
 @st.cache_data
 def load_lotto_data():
     """데이터 로드 및 캐싱"""
-    data_path = "../Data/645_251227.csv"
+    # 현재 파일 위치 기준으로 Data 폴더 경로 계산
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(current_dir)
+    data_path = os.path.join(project_root, "Data", "645_251227.csv")
+
     loader = LottoDataLoader(data_path)
     loader.load_data()
     loader.preprocess()
