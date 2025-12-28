@@ -3,6 +3,7 @@
 Streamlit 기반 인터랙티브 대시보드
 """
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -488,7 +489,7 @@ def recommendation_page(loader, model, recommender):
                 st.markdown("#### 📋 용지")
                 # 복권 용지 미리보기 (간단 버전)
                 grid_html = create_lottery_grid_simple(sorted_combo)
-                st.markdown(grid_html, unsafe_allow_html=True)
+                components.html(grid_html, height=350, scrolling=False)
 
             st.markdown("---")
 
@@ -971,7 +972,7 @@ def image_pattern_page(loader):
 
             # HTML 그리드 생성
             html = create_lottery_ticket_compact(round_num, date, winning, bonus)
-            st.markdown(html, unsafe_allow_html=True)
+            components.html(html, height=350, scrolling=False)
 
     # 분석 실행
     st.markdown("---")
