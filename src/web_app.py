@@ -459,10 +459,11 @@ def recommendation_page(loader, model, recommender):
                     consecutive.append(f"{sorted_combo[j]}-{sorted_combo[j+1]}")
 
             # 표시
-            col1, col2, col3 = st.columns([2, 2, 1])
+            st.markdown(f"### 🎰 추천 번호 #{i}")
+
+            col1, col2 = st.columns([3, 2])
 
             with col1:
-                st.markdown(f"### 조합 #{i}")
                 # 번호 버튼 형태로 표시
                 cols = st.columns(6)
                 for idx, num in enumerate(sorted_combo):
@@ -475,17 +476,23 @@ def recommendation_page(loader, model, recommender):
                         else:
                             st.markdown(f'<div style="background-color:#45B7D1;color:white;padding:15px;border-radius:10px;text-align:center;font-size:20px;font-weight:bold;">{num}</div>', unsafe_allow_html=True)
 
-            with col2:
-                st.markdown("#### 📊 통계")
-                st.write(f"**합계**: {total}")
-                st.write(f"**홀/짝**: {odd}/{even}")
-                st.write(f"**구간 분포**: 저{low} / 중{mid} / 고{high}")
-                if consecutive:
-                    st.write(f"**연속**: {', '.join(consecutive)}")
-                else:
-                    st.write("**연속**: 없음")
+                st.markdown("")  # 간격
 
-            with col3:
+                # 통계 정보
+                stat_cols = st.columns(4)
+                with stat_cols[0]:
+                    st.metric("합계", total)
+                with stat_cols[1]:
+                    st.metric("홀/짝", f"{odd}/{even}")
+                with stat_cols[2]:
+                    st.metric("구간", f"저{low}/중{mid}/고{high}")
+                with stat_cols[3]:
+                    if consecutive:
+                        st.metric("연속", ', '.join(consecutive))
+                    else:
+                        st.metric("연속", "없음")
+
+            with col2:
                 st.markdown("#### 📋 용지")
                 # 복권 용지 미리보기 (간단 버전)
                 grid_html = create_lottery_grid_simple(sorted_combo)
