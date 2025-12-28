@@ -49,8 +49,8 @@
 
 \`\`\`bash
 # 저장소 클론
-git clone https://github.com/yourusername/lotto645-analysis.git
-cd lotto645-analysis
+git clone https://github.com/MyJYP/lotter645_1227.git
+cd lotter645_1227
 
 # 가상환경 설정 (자동)
 chmod +x setup.sh
