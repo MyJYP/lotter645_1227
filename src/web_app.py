@@ -35,6 +35,24 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Google Analytics 추가
+GA_TRACKING_ID = "G-ZHK9R4TXT7"
+
+# Google Analytics 스크립트 주입
+ga_script = f"""
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id={GA_TRACKING_ID}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){{dataLayer.push(arguments);}}
+  gtag('js', new Date());
+  gtag('config', '{GA_TRACKING_ID}');
+</script>
+"""
+
+# HTML head에 주입 (한 번만 실행)
+components.html(ga_script, height=0)
+
 # 캐시 데이터 로딩
 @st.cache_data
 def load_lotto_data():
