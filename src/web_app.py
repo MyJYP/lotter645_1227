@@ -136,15 +136,38 @@ def home_page(loader):
     """홈 페이지"""
     st.title("🎰 로또 645 데이터 분석 & 번호 추천 시스템")
 
-    # 동적으로 데이터 범위 가져오기
-    min_round = int(loader.df['회차'].min())
-    max_round = int(loader.df['회차'].max())
-    total_rounds = len(loader.df)
-    min_date = loader.df['일자'].iloc[-1]  # 가장 오래된 데이터 (마지막 행)
-    max_date = loader.df['일자'].iloc[0]   # 가장 최근 데이터 (첫 행)
+    # 2칼럼 레이아웃: 왼쪽 광고 + 오른쪽 콘텐츠
+    col_ad, col_content = st.columns([1, 4])
 
-    st.markdown(f"""
-    ## 📋 프로젝트 개요
+    with col_ad:
+        # Google AdSense 광고
+        st.markdown("### 📢")
+        adsense_code = """
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5460734625020304"
+             crossorigin="anonymous"></script>
+        <!-- 로또645 사이드바 광고 -->
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-5460734625020304"
+             data-ad-slot="1234567890"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+        """
+        components.html(adsense_code, height=600)
+
+    with col_content:
+        # 동적으로 데이터 범위 가져오기
+        min_round = int(loader.df['회차'].min())
+        max_round = int(loader.df['회차'].max())
+        total_rounds = len(loader.df)
+        min_date = loader.df['일자'].iloc[-1]  # 가장 오래된 데이터 (마지막 행)
+        max_date = loader.df['일자'].iloc[0]   # 가장 최근 데이터 (첫 행)
+
+        st.markdown(f"""
+        ## 📋 프로젝트 개요
 
     로또 645의 **{min_round}회차부터 {max_round}회차까지 ({min_date} ~ {max_date})** 총 {total_rounds}회차의
     당첨 데이터를 분석하고, 머신러닝과 확률론적 접근을 통해 번호를 추천하는 시스템입니다.
@@ -186,39 +209,39 @@ def home_page(loader):
        - S등급 (90%+), A등급 (80%+), B등급 (70%+), C등급
        - 종합 점수 기반 정규화
        - 순위 및 등급 제공
-    """)
+        """)
 
-    # 데이터 요약
-    st.markdown("---")
-    st.subheader("📈 데이터 요약")
+        # 데이터 요약
+        st.markdown("---")
+        st.subheader("📈 데이터 요약")
 
-    col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4 = st.columns(4)
 
-    with col1:
-        st.metric("총 회차", f"{len(loader.df):,}회")
+        with col1:
+            st.metric("총 회차", f"{len(loader.df):,}회")
 
-    with col2:
-        avg_prize = loader.df['1등 당첨액'].mean()
-        st.metric("평균 1등 당첨금", f"{avg_prize/100000000:.1f}억원")
+        with col2:
+            avg_prize = loader.df['1등 당첨액'].mean()
+            st.metric("평균 1등 당첨금", f"{avg_prize/100000000:.1f}억원")
 
-    with col3:
-        all_numbers = loader.get_all_numbers_flat(include_bonus=False)
-        most_common = Counter(all_numbers).most_common(1)[0]
-        st.metric("최다 출현 번호", f"{most_common[0]}번 ({most_common[1]}회)")
+        with col3:
+            all_numbers = loader.get_all_numbers_flat(include_bonus=False)
+            most_common = Counter(all_numbers).most_common(1)[0]
+            st.metric("최다 출현 번호", f"{most_common[0]}번 ({most_common[1]}회)")
 
-    with col4:
-        latest_round = loader.df['회차'].iloc[0]
-        st.metric("최신 회차", f"{latest_round}회")
+        with col4:
+            latest_round = loader.df['회차'].iloc[0]
+            st.metric("최신 회차", f"{latest_round}회")
 
-    # 최근 당첨번호
-    st.markdown("---")
-    st.subheader("🎲 최근 당첨번호 (최근 10회)")
+        # 최근 당첨번호
+        st.markdown("---")
+        st.subheader("🎲 최근 당첨번호 (최근 10회)")
 
-    recent_df = loader.numbers_df.head(10)[['회차', '일자', '당첨번호', '보너스번호']].copy()
-    recent_df['당첨번호'] = recent_df['당첨번호'].apply(lambda x: ', '.join(map(str, sorted(x))))
-    recent_df = recent_df.rename(columns={'보너스번호': '보너스'})
+        recent_df = loader.numbers_df.head(10)[['회차', '일자', '당첨번호', '보너스번호']].copy()
+        recent_df['당첨번호'] = recent_df['당첨번호'].apply(lambda x: ', '.join(map(str, sorted(x))))
+        recent_df = recent_df.rename(columns={'보너스번호': '보너스'})
 
-    st.dataframe(recent_df, use_container_width=True, hide_index=True)
+        st.dataframe(recent_df, use_container_width=True, hide_index=True)
 
 
 # 데이터 탐색 페이지
