@@ -35,6 +35,7 @@ images/
 .env
 credentials.json
 config.ini
+ADSENSE_SETUP_GUIDE.md
 
 # 로그
 *.log
