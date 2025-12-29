@@ -35,23 +35,37 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Google Analytics 추가
+# Google Analytics & AdSense 설정
 GA_TRACKING_ID = "G-ZHK9R4TXT7"
+ADSENSE_CLIENT_ID = "ca-pub-5460734625020304"
 
-# Google Analytics 스크립트 주입
-ga_script = f"""
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id={GA_TRACKING_ID}"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){{dataLayer.push(arguments);}}
-  gtag('js', new Date());
-  gtag('config', '{GA_TRACKING_ID}');
-</script>
+# Google Analytics + AdSense 확인 코드 주입
+head_scripts = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Google AdSense 확인 메타 태그 -->
+    <meta name="google-adsense-account" content="{ADSENSE_CLIENT_ID}">
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_TRACKING_ID}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){{dataLayer.push(arguments);}}
+      gtag('js', new Date());
+      gtag('config', '{GA_TRACKING_ID}');
+    </script>
+
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={ADSENSE_CLIENT_ID}"
+         crossorigin="anonymous"></script>
+</head>
+<body></body>
+</html>
 """
 
 # HTML head에 주입 (한 번만 실행)
-components.html(ga_script, height=0)
+components.html(head_scripts, height=0)
 
 # 캐시 데이터 로딩
 @st.cache_data
@@ -142,18 +156,17 @@ def home_page(loader):
     with col_ad:
         # Google AdSense 광고
         st.markdown("### 📢")
-        adsense_code = """
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5460734625020304"
-             crossorigin="anonymous"></script>
+        # 광고 단위가 승인되면 data-ad-slot 값을 실제 슬롯 ID로 교체하세요
+        adsense_code = f"""
         <!-- 로또645 사이드바 광고 -->
         <ins class="adsbygoogle"
              style="display:block"
-             data-ad-client="ca-pub-5460734625020304"
+             data-ad-client="{ADSENSE_CLIENT_ID}"
              data-ad-slot="1234567890"
              data-ad-format="auto"
              data-full-width-responsive="true"></ins>
         <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
+             (adsbygoogle = window.adsbygoogle || []).push({{}});
         </script>
         """
         components.html(adsense_code, height=600)
