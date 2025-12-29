@@ -28,8 +28,8 @@ Thumbs.db
 # Project specific
 output/charts/*.png
 output/reports/*.md
+output/**/*.html
 images/
-*.html
 
 # 민감한 정보
 .env
