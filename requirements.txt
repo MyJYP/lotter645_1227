@@ -15,5 +15,10 @@ scikit-learn>=1.3.0
 streamlit>=1.28.0
 plotly>=5.17.0
 
+# 웹 스크래핑 (데이터 업데이트용)
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
 # 추가 유틸리티 (선택사항)
 openpyxl>=3.1.0  # Excel 파일 export용 (선택)

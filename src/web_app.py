@@ -25,6 +25,8 @@ from grid_pattern_analysis import GridPatternAnalysis
 from image_pattern_analysis import ImagePatternAnalysis
 from core_number_system import CoreNumberSystem
 from text_lottery_ticket import create_lottery_ticket_compact, create_lottery_grid_simple
+from data_updater import DataUpdater
+from text_parser import LottoTextParser
 
 
 # 페이지 설정
@@ -108,7 +110,7 @@ def sidebar(loader):
 
     menu = st.sidebar.radio(
         "메뉴 선택",
-        ["🏠 홈", "📊 데이터 탐색", "🎯 번호 추천", "🔍 번호 분석", "🤖 예측 모델", "🎨 그리드 패턴", "🖼️ 이미지 패턴", "🎲 번호 테마"]
+        ["🏠 홈", "📊 데이터 탐색", "🎯 번호 추천", "🔍 번호 분석", "🤖 예측 모델", "🎨 그리드 패턴", "🖼️ 이미지 패턴", "🎲 번호 테마", "🔄 데이터 업데이트"]
     )
 
     st.sidebar.markdown("---")
@@ -1676,6 +1678,381 @@ def number_theme_page(loader, model, recommender):
         """)
 
 
+# 데이터 업데이트 페이지
+def data_update_page(loader):
+    """데이터 업데이트 페이지 - 자동 크롤링 + 수동 입력"""
+    st.title("🔄 데이터 업데이트")
+
+    # 현재 데이터 상태 표시
+    st.subheader("📊 현재 데이터 상태")
+    col1, col2, col3 = st.columns(3)
+
+    latest_round = int(loader.df['회차'].max())
+    total_rounds = len(loader.df)
+    latest_date = loader.df['일자'].iloc[0]
+
+    with col1:
+        st.metric("최신 회차", f"{latest_round}회")
+    with col2:
+        st.metric("총 회차 수", f"{total_rounds}회")
+    with col3:
+        st.metric("최신 추첨일", latest_date.strftime('%Y.%m.%d'))
+
+    st.divider()
+
+    # 탭으로 자동/텍스트 파싱/수동 구분
+    tab1, tab2, tab3 = st.tabs(["🌐 자동 크롤링", "📋 텍스트 파싱 ⭐", "✍️ 수동 입력"])
+
+    # ========== 탭 1: 자동 크롤링 ==========
+    with tab1:
+        st.subheader("🌐 웹에서 자동으로 최신 데이터 가져오기")
+        st.info("""
+        ⚠️ **주의사항**
+        - 동행복권 웹사이트의 HTML 구조 변경 시 크롤링이 실패할 수 있습니다.
+        - 크롤링이 실패하면 아래 '수동 입력' 탭을 이용해주세요.
+        """)
+
+        if st.button("🔄 자동 업데이트 실행", type="primary", use_container_width=True):
+            with st.spinner("웹사이트에서 데이터를 가져오는 중..."):
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.dirname(current_dir)
+                csv_path = os.path.join(project_root, "Data", "645_251227.csv")
+
+                updater = DataUpdater(csv_path)
+
+                try:
+                    # 최신 회차 +1 데이터 시도
+                    next_round = latest_round + 1
+                    st.write(f"🔍 {next_round}회 데이터 검색 중...")
+
+                    draw_data = updater.fetch_latest_draw_from_web(next_round)
+
+                    if draw_data:
+                        st.success(f"✓ {next_round}회 데이터를 찾았습니다!")
+
+                        # 데이터 표시
+                        st.write(f"**회차**: {draw_data['회차']}")
+                        st.write(f"**일자**: {draw_data['일자']}")
+                        st.write(f"**당첨번호**: {draw_data['당첨번호']}")
+                        st.write(f"**보너스**: {draw_data['보너스번호']}")
+
+                        # CSV 업데이트
+                        if st.button("💾 CSV에 저장하기"):
+                            success, message = updater.update_csv_with_new_draw(draw_data)
+                            if success:
+                                st.success(message)
+                                st.balloons()
+                                st.warning("⚠️ 새로운 데이터를 반영하려면 페이지를 새로고침(F5)하세요.")
+                            else:
+                                st.error(message)
+                    else:
+                        st.warning(f"❌ {next_round}회 데이터를 찾을 수 없습니다.")
+                        st.info("아직 추첨이 되지 않았거나, 크롤링에 실패했을 수 있습니다.\n\n수동 입력 탭을 이용해주세요.")
+
+                except Exception as e:
+                    st.error(f"❌ 오류 발생: {str(e)}")
+                    st.info("자동 업데이트 실패 시 아래 '수동 입력' 탭을 이용해주세요.")
+
+    # ========== 탭 2: 텍스트 파싱 ==========
+    with tab2:
+        st.subheader("📋 텍스트 자동 파싱하여 입력하기")
+        st.info("""
+        💡 **사용 방법**
+        1. 동행복권 사이트에서 당첨 결과 전체를 복사 (Ctrl+C)
+        2. 왼쪽 텍스트 영역에 붙여넣기 (Ctrl+V)
+        3. "🔍 분석하기" 버튼 클릭
+        4. 오른쪽에서 파싱 결과 확인
+        5. "💾 저장하기" 버튼으로 CSV에 추가
+        """)
+
+        # 2열 레이아웃
+        col_left, col_right = st.columns([1, 1])
+
+        with col_left:
+            st.markdown("### 📝 텍스트 입력")
+
+            # 텍스트 입력 영역
+            text_input = st.text_area(
+                "동행복권 사이트 결과를 여기에 붙여넣으세요",
+                height=500,
+                placeholder="""제 1205회 추첨 결과
+2026.01.03 추첨
+당첨번호
+1
+4
+16
+23
+31
+41
++
+보너스번호
+2
+1등
+32,263,862,630원
+10
+3,226,386,263원
+...
+""",
+                key="text_parser_input"
+            )
+
+            # 분석 버튼
+            if st.button("🔍 분석하기", type="primary", use_container_width=True, key="parse_btn"):
+                if text_input.strip():
+                    with st.spinner("텍스트 분석 중..."):
+                        parser = LottoTextParser()
+                        parsed_data = parser.parse(text_input)
+
+                        # 검증
+                        is_valid, errors = parser.validate_parsed_data(parsed_data)
+
+                        # 세션에 저장
+                        st.session_state['parsed_data'] = parsed_data
+                        st.session_state['parse_valid'] = is_valid
+                        st.session_state['parse_errors'] = errors
+
+                        if is_valid:
+                            st.success("✅ 텍스트 파싱 성공!")
+                        else:
+                            st.warning("⚠️ 일부 정보를 찾지 못했습니다")
+                else:
+                    st.warning("⚠️ 텍스트를 입력해주세요")
+
+        with col_right:
+            st.markdown("### ✅ 파싱 결과")
+
+            if 'parsed_data' in st.session_state and st.session_state['parsed_data']:
+                data = st.session_state['parsed_data']
+                is_valid = st.session_state.get('parse_valid', False)
+                errors = st.session_state.get('parse_errors', [])
+
+                # 결과 표시
+                st.markdown("#### 📊 기본 정보")
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.metric("회차", f"{data.get('회차', '?')}회")
+                with col_b:
+                    st.metric("추첨일", data.get('일자', '?'))
+
+                st.markdown("#### 🎯 당첨 번호")
+                if data.get('당첨번호'):
+                    # 번호 카드 표시
+                    cols = st.columns(6)
+                    for i, num in enumerate(data['당첨번호']):
+                        with cols[i]:
+                            st.markdown(
+                                f'<div style="background-color:#4CAF50;color:white;'
+                                f'padding:15px;border-radius:10px;text-align:center;'
+                                f'font-size:24px;font-weight:bold;">{num}</div>',
+                                unsafe_allow_html=True
+                            )
+
+                    # 보너스
+                    st.markdown(f"**보너스 번호**: {data.get('보너스번호', '?')}")
+                else:
+                    st.warning("당첨번호를 찾지 못했습니다")
+
+                st.markdown("#### 💰 당첨금 정보")
+                prize_table = []
+                for rank in range(1, 6):
+                    winners = data.get(f'{rank}등 당첨자수', 0)
+                    prize = data.get(f'{rank}등 당첨액', 0)
+                    prize_table.append({
+                        '등수': f'{rank}등',
+                        '당첨자 수': f'{winners:,}명',
+                        '총 당첨금': f'{prize:,}원'
+                    })
+
+                st.table(prize_table)
+
+                # 에러 메시지
+                if not is_valid and errors:
+                    st.error("**파싱 오류:**")
+                    for error in errors:
+                        st.write(error)
+
+                # 저장 버튼
+                st.divider()
+
+                if is_valid:
+                    if st.button("💾 CSV에 저장하기", type="primary", use_container_width=True, key="save_parsed"):
+                        current_dir = os.path.dirname(os.path.abspath(__file__))
+                        project_root = os.path.dirname(current_dir)
+                        csv_path = os.path.join(project_root, "Data", "645_251227.csv")
+
+                        updater = DataUpdater(csv_path)
+
+                        with st.spinner("데이터 저장 중..."):
+                            success, message = updater.update_csv_with_new_draw(data)
+
+                            if success:
+                                st.success(message)
+                                st.balloons()
+                                st.warning("⚠️ 새로운 데이터를 반영하려면 페이지를 새로고침(F5)하세요.")
+
+                                # 세션 초기화
+                                del st.session_state['parsed_data']
+                                del st.session_state['parse_valid']
+                                del st.session_state['parse_errors']
+                            else:
+                                st.error(f"❌ {message}")
+                else:
+                    st.warning("⚠️ 파싱 오류를 수정해야 저장할 수 있습니다")
+
+            else:
+                st.info("👈 왼쪽에 텍스트를 입력하고 '분석하기' 버튼을 클릭하세요")
+
+    # ========== 탭 3: 수동 입력 ==========
+    with tab3:
+        st.subheader("✍️ 회차 데이터 직접 입력하기")
+        st.info(f"""
+        💡 **입력 가이드**
+        - 현재 최신 회차: {latest_round}회
+        - 새로 추가할 회차는 {latest_round + 1}회 이상이어야 합니다.
+        - 동행복권 사이트에서 정보를 복사하여 입력하세요.
+        """)
+
+        with st.form("manual_input_form"):
+            st.markdown("### 기본 정보")
+            col_r, col_d = st.columns(2)
+
+            with col_r:
+                round_num = st.number_input(
+                    "회차 번호",
+                    min_value=latest_round + 1,
+                    value=latest_round + 1,
+                    step=1,
+                    help=f"{latest_round + 1}회 이상만 입력 가능"
+                )
+
+            with col_d:
+                draw_date = st.date_input(
+                    "추첨 날짜",
+                    help="YYYY-MM-DD 형식"
+                )
+
+            st.markdown("### 당첨 번호")
+            cols_numbers = st.columns(6)
+            numbers = []
+            for i, col in enumerate(cols_numbers):
+                with col:
+                    num = col.number_input(
+                        f"번호 {i+1}",
+                        min_value=1,
+                        max_value=45,
+                        value=1,
+                        step=1,
+                        key=f"num_{i}"
+                    )
+                    numbers.append(num)
+
+            bonus = st.number_input(
+                "보너스 번호",
+                min_value=1,
+                max_value=45,
+                value=1,
+                step=1
+            )
+
+            st.markdown("### 당첨금 정보")
+
+            # 1등
+            st.markdown("**1등**")
+            col_1w, col_1p = st.columns(2)
+            with col_1w:
+                winners_1 = st.number_input("1등 당첨자 수", min_value=0, value=10, step=1)
+            with col_1p:
+                prize_1 = st.number_input("1등 당첨금 (원)", min_value=0, value=3000000000, step=1000000)
+
+            # 2등
+            st.markdown("**2등**")
+            col_2w, col_2p = st.columns(2)
+            with col_2w:
+                winners_2 = st.number_input("2등 당첨자 수", min_value=0, value=100, step=1)
+            with col_2p:
+                prize_2 = st.number_input("2등 당첨금 (원)", min_value=0, value=50000000, step=1000000)
+
+            # 3등
+            st.markdown("**3등**")
+            col_3w, col_3p = st.columns(2)
+            with col_3w:
+                winners_3 = st.number_input("3등 당첨자 수", min_value=0, value=3000, step=1)
+            with col_3p:
+                prize_3 = st.number_input("3등 당첨금 (원)", min_value=0, value=1500000, step=100000)
+
+            # 4등
+            st.markdown("**4등**")
+            col_4w, col_4p = st.columns(2)
+            with col_4w:
+                winners_4 = st.number_input("4등 당첨자 수", min_value=0, value=150000, step=1000)
+            with col_4p:
+                prize_4 = st.number_input("4등 당첨금 (원)", min_value=0, value=50000, step=10000)
+
+            # 5등
+            st.markdown("**5등**")
+            col_5w, col_5p = st.columns(2)
+            with col_5w:
+                winners_5 = st.number_input("5등 당첨자 수", min_value=0, value=2500000, step=10000)
+            with col_5p:
+                prize_5 = st.number_input("5등 당첨금 (원)", min_value=0, value=5000, step=1000)
+
+            submitted = st.form_submit_button("💾 데이터 저장", type="primary", use_container_width=True)
+
+            if submitted:
+                # 데이터 구성
+                draw_data = {
+                    '회차': int(round_num),
+                    '일자': draw_date.strftime('%Y.%m.%d'),
+                    '당첨번호': numbers,
+                    '보너스번호': int(bonus),
+                    '1등 당첨자수': int(winners_1),
+                    '1등 당첨액': int(prize_1),
+                    '2등 당첨자수': int(winners_2),
+                    '2등 당첨액': int(prize_2),
+                    '3등 당첨자수': int(winners_3),
+                    '3등 당첨액': int(prize_3),
+                    '4등 당첨자수': int(winners_4),
+                    '4등 당첨액': int(prize_4),
+                    '5등 당첨자수': int(winners_5),
+                    '5등 당첨액': int(prize_5)
+                }
+
+                # CSV 경로
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.dirname(current_dir)
+                csv_path = os.path.join(project_root, "Data", "645_251227.csv")
+
+                updater = DataUpdater(csv_path)
+
+                # 데이터 검증 및 저장
+                with st.spinner("데이터 검증 및 저장 중..."):
+                    success, message = updater.update_csv_with_new_draw(draw_data)
+
+                    if success:
+                        st.success(message)
+                        st.balloons()
+
+                        # 추가된 데이터 표시
+                        st.markdown("---")
+                        st.markdown("### ✅ 추가된 데이터")
+                        st.write(f"**{draw_data['회차']}회** ({draw_data['일자']})")
+                        st.write(f"당첨번호: {', '.join(map(str, draw_data['당첨번호']))} + 보너스: {draw_data['보너스번호']}")
+                        st.write(f"1등: {draw_data['1등 당첨자수']}명 / {draw_data['1등 당첨액']:,}원")
+
+                        st.warning("⚠️ 새로운 데이터를 반영하려면 페이지를 새로고침(F5)하세요.")
+                    else:
+                        st.error(f"❌ {message}")
+
+    # 백업 안내
+    st.divider()
+    st.info("""
+    📌 **자동 백업**
+    - 데이터 업데이트 시 자동으로 백업 파일이 생성됩니다.
+    - 백업 위치: `Data/backups/` 폴더
+    - 백업 파일명: `645_251227_backup_YYYYMMDD_HHMMSS.csv`
+    """)
+
+
 # 메인 앱
 def main():
     """메인 앱"""
@@ -1708,6 +2085,8 @@ def main():
         image_pattern_page(loader)
     elif menu == "🎲 번호 테마":
         number_theme_page(loader, model, recommender)
+    elif menu == "🔄 데이터 업데이트":
+        data_update_page(loader)
 
 
 if __name__ == "__main__":

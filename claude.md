@@ -2,11 +2,13 @@
 
 ## 📋 프로젝트 개요
 
-로또 645 복권의 과거 당첨 데이터(601회~1203회, 2014.6.7~2025.12.20)를 Python으로 종합 분석하는 프로젝트입니다.
+로또 645 복권의 과거 당첨 데이터(601회~1204회, 2014.6.7~2025.12.27)를 Python으로 종합 분석하는 프로젝트입니다.
 
 **작성일**: 2025-12-27
-**데이터 범위**: 601회차 ~ 1203회차 (총 602회차)
-**분석 도구**: Python 3.x, pandas, matplotlib, seaborn
+**최종 업데이트**: 2026-01-04
+**버전**: v5.0.0
+**데이터 범위**: 601회차 ~ 1204회차 (총 604회차)
+**분석 도구**: Python 3.x, pandas, matplotlib, seaborn, scikit-learn, streamlit
 
 ---
 
@@ -18,18 +20,21 @@ lotter645_1227/
 │   └── 645_251227.csv          # 로또 데이터 원본 파일
 ├── src/
 │   ├── data_loader.py          # 데이터 로드 및 전처리
+│   ├── data_updater.py         # 🔄 데이터 업데이트 (크롤링/검증) ⭐ NEW (v5.0)
+│   ├── text_parser.py          # 📋 텍스트 파싱 모듈 ⭐ NEW (v5.0)
 │   ├── basic_stats.py          # 기본 통계 분석
 │   ├── time_series.py          # 시계열 분석
 │   ├── pattern_analysis.py     # 조합 패턴 분석
 │   ├── prize_analysis.py       # 당첨금 분석
 │   ├── consecutive_analysis.py # 연속 번호 상세 분석
-│   ├── grid_pattern_analysis.py # 🎨 그리드 패턴 분석 ⭐ NEW
+│   ├── grid_pattern_analysis.py # 🎨 그리드 패턴 분석
 │   ├── prediction_model.py     # 🤖 머신러닝 예측 모델
 │   ├── recommendation_system.py # 🎯 번호 추천 시스템
-│   ├── generate_lottery_ticket.py # 복권 용지 이미지 생성 ⭐ NEW
-│   ├── batch_generate_tickets.py # 복권 용지 일괄 생성 ⭐ NEW
+│   ├── core_number_system.py   # 🎲 코어 번호 시스템
+│   ├── generate_lottery_ticket.py # 복권 용지 이미지 생성
+│   ├── batch_generate_tickets.py # 복권 용지 일괄 생성
 │   ├── visualization.py        # 시각화 (15개 차트)
-│   ├── web_app.py             # 🌐 Streamlit 웹 앱 (6페이지) ⭐
+│   ├── web_app.py             # 🌐 Streamlit 웹 앱 (9페이지) ⭐
 │   └── main.py                # CLI 메인 실행 스크립트
 ├── images/                    # 복권 용지 이미지 (604개) ⭐ NEW
 ├── output/
@@ -1168,10 +1173,22 @@ openpyxl>=3.1.0
 
 **작성자**: Claude AI (Anthropic)
 **작성일**: 2025-12-27
-**최종 업데이트**: 2025-12-28 (v4.0.0 완료)
-**버전**: 4.0.0
+**최종 업데이트**: 2026-01-04 (v5.0.0 완료)
+**버전**: 5.0.0
 
 **주요 업데이트 내역:**
+
+**v5.0.0 (2026-01-04):** ⭐ 데이터 자동 업데이트 시스템 추가
+- 🔄 **텍스트 파싱 기능 추가**: 복사-붙여넣기로 3초 안에 데이터 업데이트
+- 📋 `text_parser.py` 모듈 신규 개발 (정규표현식 기반 파싱)
+- 🔧 `data_updater.py` 모듈 추가 (크롤링, 검증, CSV 업데이트)
+- 🌐 웹 앱에 "데이터 업데이트" 페이지 추가 (총 9개 페이지)
+- 📊 3가지 업데이트 방법 지원: 자동 크롤링, 텍스트 파싱, 수동 입력
+- ✅ 실시간 파싱 결과 확인 및 검증 시스템
+- 💾 자동 백업 시스템 통합 (`Data/backups/` 폴더)
+- 📦 웹 스크래핑 라이브러리 추가 (requests, beautifulsoup4, lxml)
+- 📝 README.md 사용자 가이드 대폭 개선
+- 🎯 사용자 경험(UX) 향상: 2열 레이아웃, 시각적 피드백
 
 **v4.0.0 (2025-12-28):** ⭐ 그리드 패턴 분석 추가
 - 🎨 그리드 패턴 분석 모듈 추가 (`grid_pattern_analysis.py`)
