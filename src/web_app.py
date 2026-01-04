@@ -69,10 +69,10 @@ head_scripts = f"""
 # HTML head에 주입 (한 번만 실행)
 components.html(head_scripts, height=0)
 
-# 캐시 데이터 로딩
-@st.cache_data
-def load_lotto_data():
-    """데이터 로드 및 캐싱"""
+# 캐시 데이터 로딩 (파일 수정 시간 기반 동적 로딩)
+@st.cache_data(ttl=60)  # 60초마다 캐시 갱신
+def load_lotto_data(_file_mtime=None):
+    """데이터 로드 및 캐싱 (파일 수정 시간 기반)"""
     # 현재 파일 위치 기준으로 Data 폴더 경로 계산
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(current_dir)
@@ -84,21 +84,28 @@ def load_lotto_data():
     loader.extract_numbers()
     return loader
 
+def get_csv_file_mtime():
+    """CSV 파일의 수정 시간 반환"""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(current_dir)
+    data_path = os.path.join(project_root, "Data", "645_251227.csv")
+    return os.path.getmtime(data_path)
+
 @st.cache_resource
-def load_prediction_model(_loader):
-    """예측 모델 로드 및 학습 (캐싱)"""
+def load_prediction_model(_loader, _file_mtime=None):
+    """예측 모델 로드 및 학습 (캐싱) - 파일 수정 시간 기반 갱신"""
     model = LottoPredictionModel(_loader)
     model.train_all_patterns()
     return model
 
 @st.cache_resource
-def load_recommender(_model, _version="v3.1"):
-    """추천 시스템 로드 (캐싱) - v3.1: seed 파라미터 추가"""
+def load_recommender(_model, _file_mtime=None, _version="v3.1"):
+    """추천 시스템 로드 (캐싱) - v3.1: seed 파라미터 추가, 파일 수정 시간 기반 갱신"""
     return LottoRecommendationSystem(_model)
 
 @st.cache_resource
-def load_core_system(_model, _recommender, _version="v1.0"):
-    """코어 번호 시스템 로드 (캐싱)"""
+def load_core_system(_model, _recommender, _file_mtime=None, _version="v1.0"):
+    """코어 번호 시스템 로드 (캐싱) - 파일 수정 시간 기반 갱신"""
     return CoreNumberSystem(_model, _recommender)
 
 
@@ -119,8 +126,8 @@ def sidebar(loader):
     min_round = int(loader.df['회차'].min())
     max_round = int(loader.df['회차'].max())
     total_rounds = len(loader.df)
-    min_date = loader.df['일자'].iloc[-1]  # 가장 오래된 데이터 (마지막 행)
-    max_date = loader.df['일자'].iloc[0]   # 가장 최근 데이터 (첫 행)
+    min_date = loader.df['일자'].iloc[-1].strftime('%Y.%m.%d')  # 가장 오래된 데이터 (마지막 행)
+    max_date = loader.df['일자'].iloc[0].strftime('%Y.%m.%d')   # 가장 최근 데이터 (첫 행)
 
     st.sidebar.info(
         f"""
@@ -178,8 +185,8 @@ def home_page(loader):
         min_round = int(loader.df['회차'].min())
         max_round = int(loader.df['회차'].max())
         total_rounds = len(loader.df)
-        min_date = loader.df['일자'].iloc[-1]  # 가장 오래된 데이터 (마지막 행)
-        max_date = loader.df['일자'].iloc[0]   # 가장 최근 데이터 (첫 행)
+        min_date = loader.df['일자'].iloc[-1].strftime('%Y.%m.%d')  # 가장 오래된 데이터 (마지막 행)
+        max_date = loader.df['일자'].iloc[0].strftime('%Y.%m.%d')   # 가장 최근 데이터 (첫 행)
 
         st.markdown(f"""
         ## 📋 프로젝트 개요
@@ -1254,7 +1261,7 @@ def image_pattern_page(loader):
 
 
 # 번호 테마 페이지
-def number_theme_page(loader, model, recommender):
+def number_theme_page(loader, model, recommender, file_mtime):
     """번호 테마 페이지 (코어 번호, 고정 번호, 신뢰도)"""
     st.title("🎲 번호 테마")
 
@@ -1265,8 +1272,8 @@ def number_theme_page(loader, model, recommender):
     - 신뢰도 점수 (각 번호의 출현 확신도)
     """)
 
-    # 코어 시스템 로드
-    core_system = load_core_system(model, recommender)
+    # 코어 시스템 로드 (파일 수정 시간 기반 캐시 갱신)
+    core_system = load_core_system(model, recommender, _file_mtime=file_mtime)
 
     # 탭 구성
     tab1, tab2, tab3 = st.tabs(["⭐ 코어 번호", "🔒 고정 번호", "📊 신뢰도 점수"])
@@ -2056,11 +2063,12 @@ def data_update_page(loader):
 # 메인 앱
 def main():
     """메인 앱"""
-    # 데이터 로드
+    # 데이터 로드 (파일 수정 시간 기반 캐싱)
     try:
-        loader = load_lotto_data()
-        model = load_prediction_model(loader)
-        recommender = load_recommender(model, _version="v3.1")
+        file_mtime = get_csv_file_mtime()  # CSV 파일 수정 시간
+        loader = load_lotto_data(_file_mtime=file_mtime)
+        model = load_prediction_model(loader, _file_mtime=file_mtime)
+        recommender = load_recommender(model, _file_mtime=file_mtime, _version="v3.1")
     except Exception as e:
         st.error(f"❌ 데이터 로딩 오류: {str(e)}")
         st.stop()
@@ -2084,7 +2092,7 @@ def main():
     elif menu == "🖼️ 이미지 패턴":
         image_pattern_page(loader)
     elif menu == "🎲 번호 테마":
-        number_theme_page(loader, model, recommender)
+        number_theme_page(loader, model, recommender, file_mtime)
     elif menu == "🔄 데이터 업데이트":
         data_update_page(loader)
 
