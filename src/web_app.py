@@ -451,14 +451,16 @@ def recommendation_page(loader, model, recommender):
         )
 
     with col3:
+        # 다음 회차 계산 (도움말 텍스트에 사용)
+        next_round = int(loader.df['회차'].max()) + 1
+
         fixed_mode = st.checkbox(
             "🔒 고정 모드",
             value=False,
-            help="고정 모드: 다음 회차(1204회)에 맞춰 항상 같은 번호 추천\n랜덤 모드: 매번 다른 번호 추천"
+            help=f"고정 모드: 다음 회차({next_round}회)에 맞춰 항상 같은 번호 추천\n랜덤 모드: 매번 다른 번호 추천"
         )
 
         if fixed_mode:
-            next_round = int(loader.df['회차'].max()) + 1
             st.caption(f"📌 다음 회차({next_round}회)용 고정 번호")
         else:
             st.caption("🎲 매번 새로운 번호")
