@@ -7,24 +7,46 @@ __pycache__/
 venv/
 env/
 ENV/
+*.egg-info/
+dist/
+build/
 
-# 백테스팅 캐시 (용량이 큼)
-Data/backtesting_cache/
+# Jupyter Notebook
+.ipynb_checkpoints
 
-# 백업 파일
-Data/backups/
-
-# IDE
+# IDEs
 .vscode/
 .idea/
-*.code-workspace
+*.swp
+*.swo
+*~
 
-# 테스트 파일
-test_*.py
-*_test.py
-
-# 기타
+# OS
 .DS_Store
-*.md.backup
-analysisalgorithm.md
-add_1205_data.py
+Thumbs.db
+
+# Project specific
+output/charts/*.png
+output/reports/*.md
+output/**/*.html
+images/
+
+# 민감한 정보
+.env
+credentials.json
+config.ini
+ADSENSE_SETUP_GUIDE.md
+
+# 로그
+*.log
+
+# 임시 파일
+tmp/
+temp/
+
+# 백테스팅 캐시 (로컬에만 유지)
+Data/backtesting_cache/*
+
+# 백테스팅 최신 결과는 커밋 허용 (배포용)
+!Data/backtesting_cache/
+!Data/backtesting_cache/optimal_weights_score.json

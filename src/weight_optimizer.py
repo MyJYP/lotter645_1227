@@ -201,26 +201,37 @@ class WeightOptimizer:
         return best_weights, best_score
 
     def save_optimal_weights(self, weights, score):
-        """최적 가중치 저장
+        """최적 가중치 저장 (이중 저장: 히스토리 + 최신)
 
         Args:
             weights: 최적 가중치
             score: 점수 (3개 이상 일치율)
         """
+        now = datetime.now()
         result = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': now.isoformat(),
             'strategy': self.strategy,
             'weights': weights,
             'score': score,
             'optimization_history': self.optimization_history
         }
 
-        output_file = self.backtester.cache_dir / f"optimal_weights_{self.strategy}.json"
+        # 1. 타임스탬프 파일명으로 히스토리 저장 (로컬에만 유지)
+        timestamp_str = now.strftime('%Y-%m-%d_%H-%M-%S')
+        history_file = self.backtester.cache_dir / f"optimal_weights_{self.strategy}_{timestamp_str}.json"
 
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(history_file, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
-        print(f"\n✓ 최적 가중치 저장: {output_file}")
+        print(f"\n✓ 히스토리 저장: {history_file.name}")
+
+        # 2. 고정 파일명으로 최신 버전 저장 (배포용)
+        latest_file = self.backtester.cache_dir / f"optimal_weights_{self.strategy}.json"
+
+        with open(latest_file, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+
+        print(f"✓ 최신 버전 저장: {latest_file.name} (배포용)")
 
     def load_optimal_weights(self):
         """저장된 최적 가중치 로드
