@@ -27,6 +27,128 @@ from core_number_system import CoreNumberSystem
 from text_lottery_ticket import create_lottery_ticket_compact, create_lottery_grid_simple
 from data_updater import DataUpdater
 from text_parser import LottoTextParser
+import socket
+
+
+# ========================================
+# 프리미엄 기능 관련 함수
+# ========================================
+
+def is_local_environment():
+    """로컬 환경 여부 감지
+
+    Returns:
+        bool: True면 로컬 환경, False면 서버 환경
+    """
+    # 1. 호스트명 체크
+    hostname = socket.gethostname().lower()
+    if 'local' in hostname or hostname in ['localhost', '127.0.0.1']:
+        return True
+
+    # 2. Streamlit Cloud 환경 변수 체크
+    if os.getenv('HOSTNAME', '').startswith('streamlit-'):
+        return False  # Streamlit Cloud
+
+    # 3. 환경 변수 체크
+    if os.getenv('STREAMLIT_RUNTIME_ENV') == 'cloud':
+        return False
+
+    # 4. localhost URL 체크 (Streamlit 실행 시)
+    try:
+        import streamlit.runtime.scriptrunner as sr
+        if hasattr(sr, 'get_script_run_ctx'):
+            ctx = sr.get_script_run_ctx()
+            if ctx and hasattr(ctx, 'session_info'):
+                # 로컬에서 실행 중
+                return True
+    except:
+        pass
+
+    # 5. 기본값 (안전하게 로컬로 간주)
+    # 개발자는 항상 접근 가능하도록
+    return True
+
+
+def check_premium_access():
+    """프리미엄 기능 접근 권한 확인
+
+    Returns:
+        bool: True면 접근 허용, False면 차단
+    """
+    # 1. 로컬 환경이면 무조건 허용
+    if is_local_environment():
+        st.session_state.premium_unlocked = True
+        st.session_state.premium_mode = 'local'
+        return True
+
+    # 2. 이미 인증된 세션이면 허용
+    if st.session_state.get('premium_unlocked', False):
+        return True
+
+    # 3. 코드 입력 필요
+    return False
+
+
+def show_premium_unlock_ui():
+    """프리미엄 잠금 해제 UI"""
+    st.warning("⚠️ 이 기능은 프리미엄 전용입니다.")
+
+    st.markdown("""
+    ### 🔑 액세스 코드 입력
+
+    백테스팅 기반 가중치 최적화 및 실시간 재학습 기능을 사용하려면
+    프리미엄 액세스 코드를 입력하세요.
+
+    **프리미엄 기능:**
+    - ⚙️ 가중치 최적화 - Random Search + Grid Search로 최적 가중치 자동 탐색
+    - 🚀 실시간 재학습 - 최적 가중치로 모델 재학습 및 번호 추천
+    """)
+
+    # 2열 레이아웃
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        code_input = st.text_input(
+            "액세스 코드",
+            placeholder="PREM-XXXX-XXXX",
+            max_chars=14,
+            key="premium_code_input",
+            help="프리미엄 액세스 코드를 입력하세요"
+        )
+
+    with col2:
+        st.markdown("<br>", unsafe_allow_html=True)  # 버튼 정렬용
+        unlock_button = st.button("🔓 잠금 해제", type="primary", use_container_width=True)
+
+    if unlock_button:
+        if not code_input:
+            st.error("❌ 액세스 코드를 입력해주세요.")
+            return
+
+        # Secrets에서 코드 목록 로드
+        try:
+            valid_codes = st.secrets.get("premium", {}).get("access_codes", [])
+
+            # 입력 코드 정규화 (대문자, 공백 제거)
+            normalized_input = code_input.upper().strip()
+
+            if normalized_input in valid_codes:
+                # 인증 성공
+                st.session_state.premium_unlocked = True
+                st.session_state.premium_mode = 'code'
+                st.session_state.premium_code = normalized_input
+
+                st.success("✅ 프리미엄 기능이 잠금 해제되었습니다!")
+                st.balloons()
+
+                # 페이지 새로고침
+                st.rerun()
+            else:
+                st.error("❌ 유효하지 않은 액세스 코드입니다. 다시 확인해주세요.")
+
+        except Exception as e:
+            st.error(f"❌ 인증 중 오류가 발생했습니다: {str(e)}")
+            st.info("💡 로컬 환경에서는 모든 기능을 무료로 사용할 수 있습니다.")
 
 
 # 페이지 설정
@@ -1901,9 +2023,30 @@ def backtesting_page(loader):
                 fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
 
-    # Tab 2: 가중치 최적화 실행
+    # Tab 2: 가중치 최적화 실행 (프리미엄 기능)
     with tab2:
-        st.header("가중치 최적화")
+        st.header("⚙️ 가중치 최적화")
+
+        # 프리미엄 접근 권한 확인
+        if not check_premium_access():
+            show_premium_unlock_ui()
+            st.info("""
+            💡 **가중치 최적화란?**
+
+            백테스팅을 통해 최적의 가중치 조합을 자동으로 찾아주는 고급 기능입니다:
+            - Random Search로 최적점 탐색
+            - 정밀 Grid Search로 미세 조정
+            - 3개 이상 일치율을 극대화하는 가중치 발견
+
+            프리미엄 액세스 코드로 이 기능을 사용할 수 있습니다.
+            """)
+            return
+
+        # 프리미엄 인증 완료 - 기능 제공
+        if st.session_state.premium_mode == 'local':
+            st.success("✅ 로컬 환경 - 프리미엄 기능 자동 활성화")
+        else:
+            st.success("✅ 프리미엄 기능 활성화됨")
 
         st.info("""
         💡 **최적화 프로세스**:
@@ -2065,9 +2208,30 @@ def backtesting_page(loader):
                 st.error(f"❌ 오류 발생: {str(e)}")
                 st.exception(e)
 
-    # Tab 3: 실시간 재학습 및 추천
+    # Tab 3: 실시간 재학습 및 추천 (프리미엄 기능)
     with tab3:
-        st.header("실시간 재학습")
+        st.header("🚀 실시간 재학습")
+
+        # 프리미엄 접근 권한 확인
+        if not check_premium_access():
+            show_premium_unlock_ui()
+            st.info("""
+            💡 **실시간 재학습이란?**
+
+            최적화된 가중치로 모델을 다시 학습하고 번호를 추천하는 고급 기능입니다:
+            - 최적 가중치 자동 적용
+            - 최신 데이터 반영
+            - 고품질 번호 추천
+
+            프리미엄 액세스 코드로 이 기능을 사용할 수 있습니다.
+            """)
+            return
+
+        # 프리미엄 인증 완료 - 기능 제공
+        if st.session_state.premium_mode == 'local':
+            st.success("✅ 로컬 환경 - 프리미엄 기능 자동 활성화")
+        else:
+            st.success("✅ 프리미엄 기능 활성화됨")
 
         st.info("""
         최적화된 가중치로 모델을 재학습하고 번호를 추천합니다.
@@ -2542,6 +2706,17 @@ def data_update_page(loader):
 # 메인 앱
 def main():
     """메인 앱"""
+    # 세션 상태 초기화 (프리미엄 인증)
+    if 'premium_unlocked' not in st.session_state:
+        st.session_state.premium_unlocked = False
+    if 'premium_mode' not in st.session_state:
+        st.session_state.premium_mode = None
+
+    # 로컬 환경이면 자동으로 프리미엄 활성화
+    if is_local_environment():
+        st.session_state.premium_unlocked = True
+        st.session_state.premium_mode = 'local'
+
     # 데이터 로드 (파일 수정 시간 기반 캐싱)
     try:
         file_mtime = get_csv_file_mtime()  # CSV 파일 수정 시간

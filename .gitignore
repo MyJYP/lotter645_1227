@@ -37,6 +37,12 @@ credentials.json
 config.ini
 ADSENSE_SETUP_GUIDE.md
 
+# 프리미엄 기능 관련 민감 정보
+PREMIUM_SETUP.md
+premium_codes.txt
+.streamlit/secrets.toml
+**/.streamlit/secrets.toml
+
 # 로그
 *.log
 
