@@ -40,7 +40,7 @@ def is_local_environment():
     Returns:
         bool: True면 로컬 환경, False면 서버 환경
     """
-    # 1. 호스트명 체크
+    # 1. 호스트명 체크 (최우선 - 로컬 개발 환경 판단)
     hostname = socket.gethostname().lower()
     if 'local' in hostname or hostname in ['localhost', '127.0.0.1']:
         return True
@@ -49,23 +49,21 @@ def is_local_environment():
     if os.getenv('HOSTNAME', '').startswith('streamlit-'):
         return False  # Streamlit Cloud
 
-    # 3. 환경 변수 체크
+    # 3. Secrets 존재 여부 체크
+    # Streamlit Cloud에서는 Secrets가 설정되어 있음
+    try:
+        if 'premium' in st.secrets:
+            # Secrets가 있으면 서버 환경 (Streamlit Cloud)
+            return False
+    except (AttributeError, FileNotFoundError):
+        # Secrets 파일이 없으면 로컬 환경
+        pass
+
+    # 4. 환경 변수 체크
     if os.getenv('STREAMLIT_RUNTIME_ENV') == 'cloud':
         return False
 
-    # 4. localhost URL 체크 (Streamlit 실행 시)
-    try:
-        import streamlit.runtime.scriptrunner as sr
-        if hasattr(sr, 'get_script_run_ctx'):
-            ctx = sr.get_script_run_ctx()
-            if ctx and hasattr(ctx, 'session_info'):
-                # 로컬에서 실행 중
-                return True
-    except:
-        pass
-
-    # 5. 기본값 (안전하게 로컬로 간주)
-    # 개발자는 항상 접근 가능하도록
+    # 5. 기본값 (로컬로 간주)
     return True
 
 
