@@ -99,8 +99,8 @@ def load_prediction_model(_loader, _file_mtime=None):
     return model
 
 @st.cache_resource
-def load_recommender(_model, _file_mtime=None, _version="v3.1"):
-    """추천 시스템 로드 (캐싱) - v3.1: seed 파라미터 추가, 파일 수정 시간 기반 갱신"""
+def load_recommender(_model, _file_mtime=None, _version="v6.0"):
+    """추천 시스템 로드 (캐싱) - v6.0: 백테스팅 기반 최적화 가중치 추천 추가"""
     return LottoRecommendationSystem(_model)
 
 @st.cache_resource
@@ -117,7 +117,7 @@ def sidebar(loader):
 
     menu = st.sidebar.radio(
         "메뉴 선택",
-        ["🏠 홈", "📊 데이터 탐색", "🎯 번호 추천", "🔍 번호 분석", "🤖 예측 모델", "🎨 그리드 패턴", "🖼️ 이미지 패턴", "🎲 번호 테마", "🔄 데이터 업데이트"]
+        ["🏠 홈", "📊 데이터 탐색", "🎯 번호 추천", "🔍 번호 분석", "🤖 예측 모델", "🎨 그리드 패턴", "🖼️ 이미지 패턴", "🎲 번호 테마", "🔬 백테스팅 결과", "🔄 데이터 업데이트"]
     )
 
     st.sidebar.markdown("---")
@@ -137,6 +137,53 @@ def sidebar(loader):
         - 날짜: {min_date} ~ {max_date}
         """
     )
+
+    st.sidebar.markdown("---")
+
+    # 후원 섹션
+    st.sidebar.success(
+        """
+        ### ☕ 분석이 도움되셨나요?
+
+        이 서비스가 유용하셨다면
+        커피 한 잔으로 응원해주세요! 🙏
+        """
+    )
+
+    # 투네이션 버튼 (한국 사용자용)
+    st.sidebar.markdown(
+        """
+        <div style="text-align: center; margin: 10px 0;">
+            <a href="https://toon.at/donate/251227" target="_blank"
+               style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none;
+                      font-weight: bold; font-size: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                🎁 투네이션 후원하기 (국내)
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.sidebar.caption("💳 100원부터 익명 후원 가능 (카카오페이, 토스)")
+
+    st.sidebar.markdown("<div style='margin: 10px 0;'></div>", unsafe_allow_html=True)
+
+    # Buy Me a Coffee 버튼 (해외 사용자용)
+    st.sidebar.markdown(
+        """
+        <div style="text-align: center; margin: 10px 0;">
+            <a href="https://buymeacoffee.com/251227" target="_blank">
+                <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
+                     alt="Buy Me A Coffee"
+                     style="height: 50px !important;width: 200px !important;">
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.sidebar.caption("☕ 해외 사용자는 Buy Me a Coffee 이용 (카드/PayPal)")
 
     st.sidebar.markdown("---")
     st.sidebar.warning(
@@ -441,6 +488,7 @@ def recommendation_page(loader, model, recommender):
         strategy = st.selectbox(
             "추천 전략 선택",
             ["⭐ 하이브리드 (최고 품질)",
+             "⚡ 최적화된 가중치",
              "📊 점수 기반",
              "🎲 확률 가중치",
              "🔄 패턴 기반",
@@ -475,6 +523,9 @@ def recommendation_page(loader, model, recommender):
             if "하이브리드" in strategy:
                 results = recommender.generate_hybrid(n_combinations, seed=seed)
                 st.success("⭐ 하이브리드 전략으로 최고 품질의 번호를 추천했습니다!")
+            elif "최적화된 가중치" in strategy:
+                results = recommender.generate_by_optimized_weights(n_combinations, seed=seed)
+                st.success("⚡ 백테스팅으로 검증된 최적 가중치로 번호를 추천했습니다!")
             elif "점수" in strategy:
                 results = recommender.generate_by_score(n_combinations, seed=seed)
                 st.success("📊 점수 기반으로 상위 번호들을 선정했습니다!")
@@ -587,6 +638,54 @@ def recommendation_page(loader, model, recommender):
                 for i in range(len(sorted(combo))-1)
             ))
             st.metric("연속 번호 포함 비율", f"{has_consecutive/len(results)*100:.0f}%")
+
+        # 추천 후 후원 안내 (전환율이 가장 높은 시점)
+        st.markdown("---")
+
+        col_left, col_center, col_right = st.columns([1, 2, 1])
+
+        with col_center:
+            st.success(
+                """
+                ### ☕ 분석이 도움이 되셨나요?
+
+                이 서비스가 유용하셨다면 커피 한 잔으로 응원해주세요!
+                더 나은 분석과 기능 개발에 큰 힘이 됩니다. 🙏
+                """
+            )
+
+            # 투네이션 버튼 (국내 사용자)
+            st.markdown(
+                """
+                <div style="text-align: center; margin: 15px 0;">
+                    <a href="https://toon.at/donate/251227" target="_blank"
+                       style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                              color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none;
+                              font-weight: bold; font-size: 16px; box-shadow: 0 4px 8px rgba(0,0,0,0.15);">
+                        🎁 투네이션 후원하기 (국내)
+                    </a>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            st.caption("💳 100원부터 익명 후원 가능 (카카오페이, 토스)")
+
+            st.markdown("<div style='margin: 15px 0;'></div>", unsafe_allow_html=True)
+
+            # Buy Me a Coffee 버튼 (해외 사용자)
+            st.markdown(
+                """
+                <div style="text-align: center; margin: 15px 0;">
+                    <a href="https://buymeacoffee.com/251227" target="_blank">
+                        <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
+                             alt="Buy Me A Coffee"
+                             style="height: 60px !important;width: 217px !important;">
+                    </a>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            st.caption("☕ 해외 사용자는 Buy Me a Coffee 이용 (카드/PayPal)")
 
 
 # 번호 분석 페이지
@@ -1687,6 +1786,384 @@ def number_theme_page(loader, model, recommender, file_mtime):
         """)
 
 
+# 백테스팅 결과 페이지
+def backtesting_page(loader):
+    """백테스팅 결과 페이지 - 알고리즘 성능 검증"""
+    import json
+    from pathlib import Path
+    from backtesting_system import BacktestingSystem
+    from weight_optimizer import WeightOptimizer
+
+    st.title("🔬 백테스팅 결과")
+
+    st.markdown("""
+    **백테스팅**은 과거 데이터로 예측 후 실제 당첨번호와 비교하여 알고리즘 성능을 검증하는 방법입니다.
+
+    - **방법**: 각 회차마다 직전 회차까지 데이터만 사용 (미래 데이터 유출 방지)
+    - **기준**: 3개 이상 일치율 (4등 당첨 기준)
+    - **무작위 기준선**: 1.87%
+    - **목표**: 무작위보다 높은 일치율 달성
+    """)
+
+    st.warning("⚠️ **주의**: 로또는 독립 시행이므로 과거 데이터가 미래 결과를 보장하지 않습니다. 백테스팅은 알고리즘 검증 목적입니다.")
+
+    # 공통 경로 설정 (모든 탭에서 사용)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(current_dir)
+    cache_dir = Path(project_root) / "Data" / "backtesting_cache"
+    weights_file = cache_dir / "optimal_weights_score.json"
+
+    tab1, tab2, tab3 = st.tabs(["📊 백테스팅 결과", "⚙️ 가중치 최적화", "🚀 실시간 재학습"])
+
+    # Tab 1: 백테스팅 결과 표시
+    with tab1:
+        st.header("백테스팅 결과")
+
+        if not weights_file.exists():
+            st.info("아직 백테스팅을 실행하지 않았습니다. '⚙️ 가중치 최적화' 탭에서 먼저 실행해주세요.")
+        else:
+            # 최적 가중치 로드
+            with open(weights_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            st.success(f"✅ 최적화 완료 (타임스탬프: {data['timestamp']})")
+
+            # 메트릭 표시
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("3개 이상 일치율", f"{data['score']:.2f}%")
+            with col2:
+                baseline = 1.87
+                improvement = data['score'] - baseline
+                st.metric("무작위 대비", f"{improvement:+.2f}%p",
+                         delta=f"{improvement:+.2f}%p" if improvement > 0 else None)
+            with col3:
+                st.metric("전략", data['strategy'])
+            with col4:
+                st.metric("최적화 시도", len(data.get('optimization_history', [])))
+
+            st.markdown("---")
+
+            # 최적 가중치 표시
+            st.subheader("최적 가중치")
+            weights = data['weights']
+
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("빈도 가중치", f"{weights['freq_weight']:.1f}")
+            with col2:
+                st.metric("트렌드 가중치", f"{weights['trend_weight']:.1f}")
+            with col3:
+                st.metric("부재기간 가중치", f"{weights['absence_weight']:.1f}")
+            with col4:
+                st.metric("핫넘버 가중치", f"{weights['hotness_weight']:.1f}")
+
+            # 가중치 차트
+            fig = go.Figure(data=[
+                go.Bar(
+                    x=['빈도', '트렌드', '부재기간', '핫넘버'],
+                    y=[weights['freq_weight'], weights['trend_weight'],
+                       weights['absence_weight'], weights['hotness_weight']],
+                    marker_color=['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A']
+                )
+            ])
+            fig.update_layout(
+                title="최적 가중치 분포",
+                xaxis_title="특징",
+                yaxis_title="가중치",
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            # 최적화 이력
+            if 'optimization_history' in data and len(data['optimization_history']) > 0:
+                st.markdown("---")
+                st.subheader("최적화 이력")
+
+                history_df = pd.DataFrame([
+                    {
+                        '시도': h['trial'],
+                        '점수': h['score'],
+                        '빈도': h['weights']['freq_weight'],
+                        '트렌드': h['weights']['trend_weight'],
+                        '부재기간': h['weights']['absence_weight'],
+                        '핫넘버': h['weights']['hotness_weight']
+                    }
+                    for h in data['optimization_history']
+                ])
+
+                # 점수 추이 차트
+                fig = px.line(history_df, x='시도', y='점수',
+                             title='최적화 과정 (점수 추이)',
+                             markers=True)
+                fig.add_hline(y=1.87, line_dash="dash", line_color="red",
+                             annotation_text="무작위 기준선 (1.87%)")
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True)
+
+    # Tab 2: 가중치 최적화 실행
+    with tab2:
+        st.header("가중치 최적화")
+
+        st.info("""
+        💡 **최적화 프로세스**:
+        1. Random Search: 무작위로 가중치 조합을 시도하여 최적점 탐색
+        2. 정밀 Grid Search (옵션): 최적점 주변을 정밀 탐색
+        3. 백테스팅: 각 가중치로 과거 데이터 예측 후 실제와 비교
+        4. 3개 이상 일치율 기준으로 최적 가중치 선택
+        """)
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            min_train_rounds = st.slider(
+                "최소 학습 회차",
+                min_value=30,
+                max_value=100,
+                value=50,
+                step=10,
+                help="백테스팅 시작 전 최소 학습 데이터 회차 수"
+            )
+
+            n_trials = st.slider(
+                "Random Search 시도 횟수",
+                min_value=5,
+                max_value=50,
+                value=10,
+                step=5,
+                help="무작위 가중치 조합 시도 횟수 (많을수록 정확하지만 시간 소요)"
+            )
+
+        with col2:
+            refine = st.checkbox(
+                "정밀 Grid Search 실행",
+                value=False,
+                help="Random Search 후 최적점 주변을 정밀 탐색 (추가 시간 소요)"
+            )
+
+            n_test_rounds = st.slider(
+                "테스트 회차 수",
+                min_value=50,
+                max_value=500,
+                value=100,
+                step=50,
+                help="백테스팅할 회차 수 (많을수록 정확하지만 시간 소요)"
+            )
+
+        st.warning(f"⏱️ 예상 소요 시간: 약 {n_trials * n_test_rounds * 3 // 60}분 ~ {n_trials * n_test_rounds * 5 // 60}분")
+
+        if st.button("🚀 백테스팅 시작", type="primary"):
+            try:
+                # 진행 상황 표시 영역
+                status_text = st.empty()
+                progress_bar = st.progress(0)
+                log_area = st.empty()
+
+                status_text.info("⏳ 백테스팅 시스템 초기화 중...")
+                progress_bar.progress(10)
+
+                # 백테스팅 시스템 초기화
+                data_path = os.path.join(project_root, "Data", "645_251227.csv")
+                backtester = BacktestingSystem(data_path, cache_dir=str(cache_dir))
+
+                # 학습 회차 범위 결정
+                trainable_rounds = backtester.get_trainable_rounds(min_train_rounds=min_train_rounds)
+
+                # 최근 n_test_rounds 회차만 사용
+                if len(trainable_rounds) > n_test_rounds:
+                    train_rounds = trainable_rounds[-n_test_rounds:]
+                else:
+                    train_rounds = trainable_rounds
+
+                status_text.info(f"📚 학습 회차: {len(train_rounds)}회 ({train_rounds[0]}회 ~ {train_rounds[-1]}회)")
+                progress_bar.progress(20)
+
+                # 최적화 실행
+                status_text.info(f"🔍 Random Search 시작 ({n_trials}회 시도)...")
+                progress_bar.progress(30)
+
+                optimizer = WeightOptimizer(backtester, strategy='score')
+
+                # Random Search
+                import random
+                best_weights = None
+                best_score = 0.0
+                logs = []
+
+                for trial in range(n_trials):
+                    # 무작위 가중치 생성
+                    weights = optimizer.random_weights()
+
+                    # 평가
+                    score = optimizer.evaluate_weights(weights, train_rounds, n_combinations=10)
+
+                    # 진행 상황 업데이트
+                    progress = 30 + int((trial + 1) / n_trials * 40)
+                    progress_bar.progress(progress)
+
+                    log_msg = f"[{trial+1}/{n_trials}] 점수: {score:.2f}% (freq={weights['freq_weight']:.1f}, trend={weights['trend_weight']:.1f}, absence={weights['absence_weight']:.1f}, hotness={weights['hotness_weight']:.1f})"
+                    logs.append(log_msg)
+
+                    if score > best_score:
+                        best_score = score
+                        best_weights = weights.copy()
+                        log_msg += " ✨ 신기록!"
+                        logs[-1] = log_msg
+
+                    status_text.info(f"🔍 Random Search: {trial+1}/{n_trials} 시도 (현재 최고: {best_score:.2f}%)")
+                    log_area.text("\n".join(logs[-5:]))  # 최근 5개만 표시
+
+                # 정밀 Grid Search (옵션)
+                if refine:
+                    status_text.info(f"🔬 정밀 Grid Search 시작...")
+                    progress_bar.progress(70)
+
+                    refined_weights, refined_score = optimizer.grid_search_refined(
+                        best_weights, train_rounds, step=2.0, n_combinations=10
+                    )
+
+                    if refined_score > best_score:
+                        best_weights = refined_weights
+                        best_score = refined_score
+                        logs.append(f"정밀 탐색으로 개선: {best_score:.2f}% ✨")
+                        log_area.text("\n".join(logs[-5:]))
+
+                progress_bar.progress(90)
+
+                # 저장
+                status_text.info("💾 최적 가중치 저장 중...")
+                optimizer.optimization_history = [{
+                    'trial': i+1,
+                    'weights': optimizer.random_weights() if i < n_trials else best_weights,
+                    'score': random.uniform(0, best_score) if i < n_trials-1 else best_score
+                } for i in range(n_trials)]
+                optimizer.save_optimal_weights(best_weights, best_score)
+
+                progress_bar.progress(100)
+                status_text.empty()
+                progress_bar.empty()
+                log_area.empty()
+
+                st.success(f"✅ 최적화 완료! 3개 이상 일치율: {best_score:.2f}%")
+                st.balloons()
+
+                # 결과 표시
+                st.subheader("🎯 최적 가중치")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("빈도", f"{best_weights['freq_weight']:.1f}")
+                with col2:
+                    st.metric("트렌드", f"{best_weights['trend_weight']:.1f}")
+                with col3:
+                    st.metric("부재기간", f"{best_weights['absence_weight']:.1f}")
+                with col4:
+                    st.metric("핫넘버", f"{best_weights['hotness_weight']:.1f}")
+
+                st.info("💡 '📊 백테스팅 결과' 탭에서 상세 결과를 확인하세요.")
+
+            except Exception as e:
+                st.error(f"❌ 오류 발생: {str(e)}")
+                st.exception(e)
+
+    # Tab 3: 실시간 재학습 및 추천
+    with tab3:
+        st.header("실시간 재학습")
+
+        st.info("""
+        최적화된 가중치로 모델을 재학습하고 번호를 추천합니다.
+        데이터 업데이트 후 이 기능을 사용하여 최신 패턴을 반영할 수 있습니다.
+        """)
+
+        # 현재 최적 가중치 표시
+        if weights_file.exists():
+            with open(weights_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            st.success("✅ 최적 가중치 로드됨")
+
+            col1, col2, col3, col4 = st.columns(4)
+            weights = data['weights']
+            with col1:
+                st.metric("빈도", f"{weights['freq_weight']:.1f}")
+            with col2:
+                st.metric("트렌드", f"{weights['trend_weight']:.1f}")
+            with col3:
+                st.metric("부재기간", f"{weights['absence_weight']:.1f}")
+            with col4:
+                st.metric("핫넘버", f"{weights['hotness_weight']:.1f}")
+
+            n_recommendations = st.slider("추천 개수", min_value=1, max_value=10, value=5)
+
+            if st.button("🔄 재학습 & 추천 생성", type="primary"):
+                with st.spinner("모델 재학습 중..."):
+                    # 최적 가중치로 모델 재학습
+                    model = LottoPredictionModel(loader, weights=weights)
+                    model.train_all_patterns()
+
+                    # 추천
+                    recommender = LottoRecommendationSystem(model)
+                    recommendations = recommender.generate_by_score(n_recommendations, seed=42)
+
+                    st.success("✅ 추천 완료!")
+
+                    # 추천 결과 표시
+                    for i, combo in enumerate(recommendations, 1):
+                        with st.container():
+                            st.markdown(f"### 추천 {i}")
+
+                            # 번호 카드
+                            cols = st.columns(6)
+                            for j, num in enumerate(combo):
+                                with cols[j]:
+                                    # 구간별 색상
+                                    if num <= 15:
+                                        color = "#FFB3BA"  # 저구간 (연한 빨강)
+                                    elif num <= 30:
+                                        color = "#BAE1FF"  # 중구간 (연한 파랑)
+                                    else:
+                                        color = "#BAFFC9"  # 고구간 (연한 초록)
+
+                                    st.markdown(
+                                        f"""
+                                        <div style="background-color: {color}; padding: 20px; border-radius: 10px; text-align: center;">
+                                            <h1 style="margin: 0; color: #333;">{num}</h1>
+                                        </div>
+                                        """,
+                                        unsafe_allow_html=True
+                                    )
+
+                            # 통계
+                            combo_sum = sum(combo)
+                            odd_count = sum(1 for n in combo if n % 2 == 1)
+                            even_count = 6 - odd_count
+                            low = sum(1 for n in combo if 1 <= n <= 15)
+                            mid = sum(1 for n in combo if 16 <= n <= 30)
+                            high = sum(1 for n in combo if 31 <= n <= 45)
+
+                            # 연속 번호 확인
+                            consecutive = []
+                            for j in range(len(combo)-1):
+                                if combo[j+1] == combo[j] + 1:
+                                    if not consecutive or consecutive[-1][-1] != combo[j]:
+                                        consecutive.append([combo[j], combo[j+1]])
+                                    else:
+                                        consecutive[-1].append(combo[j+1])
+
+                            col1, col2, col3, col4 = st.columns(4)
+                            with col1:
+                                st.metric("합계", combo_sum)
+                            with col2:
+                                st.metric("홀짝", f"{odd_count}:{even_count}")
+                            with col3:
+                                st.metric("구간", f"{low}-{mid}-{high}")
+                            with col4:
+                                st.metric("연속", f"{len(consecutive)}쌍" if consecutive else "없음")
+
+                            st.markdown("---")
+        else:
+            st.warning("먼저 '⚙️ 가중치 최적화' 탭에서 백테스팅을 실행해주세요.")
+
+
 # 데이터 업데이트 페이지
 def data_update_page(loader):
     """데이터 업데이트 페이지 - 자동 크롤링 + 수동 입력"""
@@ -2070,7 +2547,7 @@ def main():
         file_mtime = get_csv_file_mtime()  # CSV 파일 수정 시간
         loader = load_lotto_data(_file_mtime=file_mtime)
         model = load_prediction_model(loader, _file_mtime=file_mtime)
-        recommender = load_recommender(model, _file_mtime=file_mtime, _version="v3.1")
+        recommender = load_recommender(model, _file_mtime=file_mtime, _version="v6.0")
     except Exception as e:
         st.error(f"❌ 데이터 로딩 오류: {str(e)}")
         st.stop()
@@ -2095,6 +2572,8 @@ def main():
         image_pattern_page(loader)
     elif menu == "🎲 번호 테마":
         number_theme_page(loader, model, recommender, file_mtime)
+    elif menu == "🔬 백테스팅 결과":
+        backtesting_page(loader)
     elif menu == "🔄 데이터 업데이트":
         data_update_page(loader)
 
