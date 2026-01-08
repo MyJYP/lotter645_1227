@@ -20,5 +20,8 @@ requests>=2.31.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
 
+# 진행률 표시
+tqdm>=4.65.0
+
 # 추가 유틸리티 (선택사항)
 openpyxl>=3.1.0  # Excel 파일 export용 (선택)

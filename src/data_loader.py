@@ -110,6 +110,41 @@ class LottoDataLoader:
 
         return all_numbers
 
+    def load_data_until_round(self, max_round):
+        """특정 회차까지만 데이터 로드 (백테스팅용)
+
+        Args:
+            max_round: 최대 회차 번호 (포함)
+
+        Returns:
+            LottoDataLoader: self (메서드 체이닝)
+        """
+        self.load_data()
+        self.preprocess()
+
+        # 회차 필터링 (max_round 포함)
+        self.df = self.df[self.df['회차'] <= max_round].copy()
+
+        self.extract_numbers()
+        return self
+
+    def get_round_data(self, round_num):
+        """특정 회차의 당첨번호 반환
+
+        Args:
+            round_num: 회차 번호
+
+        Returns:
+            list or None: 당첨번호 6개 (정렬)
+        """
+        if self.numbers_df is None:
+            return None
+
+        row = self.numbers_df[self.numbers_df['회차'] == round_num]
+        if row.empty:
+            return None
+        return sorted(row.iloc[0]['당첨번호'])
+
     def get_summary(self):
         """데이터 요약 정보 출력"""
         print("\n" + "="*60)

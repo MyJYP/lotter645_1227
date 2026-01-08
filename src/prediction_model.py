@@ -14,14 +14,32 @@ warnings.filterwarnings('ignore')
 class LottoPredictionModel:
     """로또 번호 예측을 위한 머신러닝 모델"""
 
-    def __init__(self, data_loader):
+    def __init__(self, data_loader, weights=None):
         """
         Args:
             data_loader: LottoDataLoader 인스턴스
+            weights: dict 또는 None
+                {
+                    'freq_weight': 30.0,      # 빈도 가중치 (기본 30)
+                    'trend_weight': 30.0,     # 트렌드 가중치 (기본 30)
+                    'absence_weight': 20.0,   # 부재기간 가중치 (기본 20)
+                    'hotness_weight': 20.0    # 핫넘버 가중치 (기본 20)
+                }
         """
         self.loader = data_loader
         self.df = data_loader.df
         self.numbers_df = data_loader.numbers_df
+
+        # 가중치 설정 (기본값 또는 사용자 지정)
+        if weights is None:
+            self.weights = {
+                'freq_weight': 30.0,
+                'trend_weight': 30.0,
+                'absence_weight': 20.0,
+                'hotness_weight': 20.0
+            }
+        else:
+            self.weights = weights
 
         # 모델 컴포넌트
         self.scaler = StandardScaler()
@@ -222,7 +240,7 @@ class LottoPredictionModel:
         return sum_patterns
 
     def calculate_number_scores(self):
-        """각 번호에 대한 종합 점수 계산"""
+        """각 번호에 대한 종합 점수 계산 (가중치 적용)"""
         print("\n🎯 번호별 종합 점수 계산 중...")
 
         if not self.number_features:
@@ -230,21 +248,27 @@ class LottoPredictionModel:
 
         scores = {}
 
+        # 가중치 추출
+        freq_w = self.weights['freq_weight']
+        trend_w = self.weights['trend_weight']
+        absence_w = self.weights['absence_weight']
+        hotness_w = self.weights['hotness_weight']
+
         for num in range(1, 46):
             features = self.number_features[num]
 
-            # 점수 계산 (여러 요소 종합)
-            # 1. 빈도 점수 (0-30점)
-            freq_score = min(features['total_frequency'] / 100 * 30, 30)
+            # 점수 계산 (여러 요소 종합, 가중치 적용)
+            # 1. 빈도 점수 (0-freq_w점)
+            freq_score = min(features['total_frequency'] / 100 * freq_w, freq_w)
 
-            # 2. 최근 트렌드 점수 (0-30점)
-            trend_score = features['recent_50_frequency'] / 50 * 30
+            # 2. 최근 트렌드 점수 (0-trend_w점)
+            trend_score = features['recent_50_frequency'] / 50 * trend_w
 
-            # 3. 부재 기간 점수 (0-20점) - 오래 안나왔으면 높은 점수
-            absence_score = min(features['absence_length'] / 20 * 20, 20)
+            # 3. 부재 기간 점수 (0-absence_w점) - 오래 안나왔으면 높은 점수
+            absence_score = min(features['absence_length'] / 20 * absence_w, absence_w)
 
-            # 4. 핫넘버 점수 (0-20점)
-            hotness_score = min(features['hotness_score'] / 10 * 20, 20)
+            # 4. 핫넘버 점수 (0-hotness_w점)
+            hotness_score = min(features['hotness_score'] / 10 * hotness_w, hotness_w)
 
             total_score = freq_score + trend_score + absence_score + hotness_score
 

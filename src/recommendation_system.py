@@ -591,6 +591,53 @@ class LottoRecommendationSystem:
 
         return results
 
+    def generate_by_optimized_weights(self, n_combinations=5, seed=None):
+        """최적화된 가중치 기반 추천
+
+        프로세스:
+        1. 최적 가중치 JSON 파일 로드
+        2. 최적 가중치로 모델 재학습
+        3. 점수 기반 추천 실행
+
+        Args:
+            n_combinations: 추천 개수
+            seed: 랜덤 시드
+
+        Returns:
+            list: 추천 번호 조합 리스트
+        """
+        import os
+        import json
+        from prediction_model import LottoPredictionModel
+
+        print(f"\n⚡ 최적화된 가중치 추천 (조합: {n_combinations}개)")
+
+        # 최적 가중치 로드
+        cache_dir = "../Data/backtesting_cache"
+        weights_file = os.path.join(cache_dir, "optimal_weights_score.json")
+
+        if not os.path.exists(weights_file):
+            print("  ⚠️ 최적 가중치 없음, 기본 전략 사용")
+            return self.generate_by_score(n_combinations, seed=seed)
+
+        with open(weights_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        opt_weights = data['weights']
+        print(f"  최적 가중치 로드 (3개 이상 일치율: {data['score']:.2f}%)")
+        print(f"    freq={opt_weights['freq_weight']:.1f}, "
+              f"trend={opt_weights['trend_weight']:.1f}, "
+              f"absence={opt_weights['absence_weight']:.1f}, "
+              f"hotness={opt_weights['hotness_weight']:.1f}")
+
+        # 최적 가중치로 재학습
+        optimized_model = LottoPredictionModel(self.loader, weights=opt_weights)
+        optimized_model.train_all_patterns()
+
+        # 추천
+        temp_recommender = LottoRecommendationSystem(optimized_model)
+        return temp_recommender.generate_by_score(n_combinations, seed=seed)
+
     def generate_all_strategies(self, n_per_strategy=3, seed=None):
         """모든 전략으로 번호 생성"""
         print("\n" + "="*70)
