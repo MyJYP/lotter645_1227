@@ -40,30 +40,78 @@ def is_local_environment():
     Returns:
         bool: True면 로컬 환경, False면 서버 환경
     """
-    # 1. 호스트명 체크 (최우선 - 로컬 개발 환경 판단)
+    # ========================================
+    # 🔍 디버깅 모드: 실제 환경 정보 확인
+    # ========================================
+    # 임시로 주석 해제하여 Streamlit Cloud의 실제 환경 확인 가능
+    DEBUG_MODE = True  # 🔍 디버깅을 위해 임시로 True
+
+    if DEBUG_MODE:
+        import streamlit as st
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### 🔍 환경 디버깅 정보")
+        st.sidebar.write(f"**호스트명**: {socket.gethostname()}")
+        st.sidebar.write(f"**HOSTNAME 환경변수**: {os.getenv('HOSTNAME', 'None')}")
+        st.sidebar.write(f"**STREAMLIT_RUNTIME_ENV**: {os.getenv('STREAMLIT_RUNTIME_ENV', 'None')}")
+        st.sidebar.write(f"**USER**: {os.getenv('USER', 'None')}")
+        st.sidebar.write(f"**HOME**: {os.getenv('HOME', 'None')}")
+
+        # Secrets 체크
+        try:
+            has_secrets = 'premium' in st.secrets
+            st.sidebar.write(f"**Secrets 존재**: {has_secrets}")
+        except:
+            st.sidebar.write(f"**Secrets 존재**: False")
+        st.sidebar.markdown("---")
+
+    # ========================================
+    # 실제 환경 감지 로직
+    # ========================================
+
+    # 1. Streamlit Cloud 명확한 표시 체크
+    # Streamlit Cloud는 특정 환경 변수나 파일 구조를 가짐
+
+    # 방법 1: 특정 환경 변수 체크
+    if os.getenv('STREAMLIT_SHARING_MODE') == '1':
+        return False  # Streamlit Cloud
+
+    # 방법 2: HOME 경로로 판단 (Streamlit Cloud는 특정 경로 사용)
+    home_path = os.getenv('HOME', '')
+    if home_path.startswith('/home/appuser') or 'streamlit' in home_path.lower():
+        return False  # Streamlit Cloud
+
+    # 방법 3: 호스트명 체크 (로컬 개발 환경)
     hostname = socket.gethostname().lower()
     if 'local' in hostname or hostname in ['localhost', '127.0.0.1']:
         return True
 
-    # 2. Streamlit Cloud 환경 변수 체크
+    # 방법 4: Streamlit Cloud 환경 변수
     if os.getenv('HOSTNAME', '').startswith('streamlit-'):
-        return False  # Streamlit Cloud
+        return False
 
-    # 3. Secrets 존재 여부 체크
-    # Streamlit Cloud에서는 Secrets가 설정되어 있음
-    try:
-        if 'premium' in st.secrets:
-            # Secrets가 있으면 서버 환경 (Streamlit Cloud)
-            return False
-    except (AttributeError, FileNotFoundError):
-        # Secrets 파일이 없으면 로컬 환경
-        pass
-
-    # 4. 환경 변수 체크
+    # 방법 5: 환경 변수 직접 체크
     if os.getenv('STREAMLIT_RUNTIME_ENV') == 'cloud':
         return False
 
-    # 5. 기본값 (로컬로 간주)
+    # 방법 6: Secrets 파일 위치로 판단
+    # Streamlit Cloud는 Secrets를 특정 위치에 마운트
+    try:
+        # 로컬: src/.streamlit/secrets.toml (파일로 존재)
+        # Cloud: 메모리에 마운트되어 st.secrets로만 접근 가능
+        if 'premium' in st.secrets:
+            # Secrets에 접근 가능하면 추가 체크
+            # 로컬에서는 파일이 직접 존재하는지 확인
+            local_secrets_path = os.path.join(os.path.dirname(__file__), '.streamlit', 'secrets.toml')
+            if os.path.exists(local_secrets_path):
+                # 로컬 파일이 있으면 로컬 환경
+                return True
+            else:
+                # 파일 없이 Secrets만 있으면 Cloud
+                return False
+    except (AttributeError, FileNotFoundError):
+        pass
+
+    # 기본값 (로컬로 간주)
     return True
 
 
