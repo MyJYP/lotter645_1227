@@ -1173,10 +1173,37 @@ openpyxl>=3.1.0
 
 **작성자**: Claude AI (Anthropic)
 **작성일**: 2025-12-27
-**최종 업데이트**: 2026-01-04 (v5.1.0 완료)
-**버전**: 5.1.0
+**최종 업데이트**: 2026-01-09 (v6.0.0 완료)
+**버전**: 6.0.0
 
 **주요 업데이트 내역:**
+
+**v6.0.0 (2026-01-09):** ⭐ 프리미엄 인증 시스템 구현
+- 🔐 **프리미엄 기능 접근 제어 시스템**: 백테스팅 고급 기능에 액세스 코드 인증 적용
+- 🎯 **Tab 2, 3 프리미엄 잠금**: 가중치 최적화 및 실시간 재학습 기능 보호
+- 🔑 **100개 액세스 코드 생성**: `PREM-XXXX-XXXX` 형식의 프리미엄 코드
+- 🏠 **환경 자동 감지**: 로컬/서버 구분 (USER=appuser, HOME=/home/appuser 기반)
+- 🔧 **개발자 모드**: `LOTTO_DEV_MODE=true` 환경변수로 로컬 테스트 간편화
+- 🔒 **보안 강화**:
+  - Secrets 파일 Git 제외 (.gitignore)
+  - PREMIUM_SETUP.md, premium_codes.txt 비공개
+  - Streamlit Cloud Secrets 관리
+- 📝 **테스트 및 배포 도구**:
+  - `test_local_premium.sh`: 로컬 환경 테스트 스크립트
+  - `src/test_premium_auth.py`: Python 테스트 스크립트
+  - `PREMIUM_DEPLOYMENT.md`: 배포 가이드
+  - `DEPLOYMENT_TEST.md`: 배포 검증 체크리스트
+- 💡 **로컬 개발 지원**:
+  - 로컬/서버 모두 기본적으로 액세스 코드 필요
+  - 개발자 모드로 인증 우회 가능
+  - 명확한 UI 안내 메시지
+
+**기술적 세부사항:**
+- `is_local_environment()`: USER, HOME, HOSTNAME 기반 환경 감지 (src/web_app.py:37-103)
+- `check_premium_access()`: 개발자 모드 및 세션 인증 확인 (src/web_app.py:106-125)
+- `show_premium_unlock_ui()`: 액세스 코드 입력 UI 및 검증 (src/web_app.py:128-220)
+- `main()`: 세션 상태 초기화 및 개발자 모드 체크 (src/web_app.py:2743-2756)
+- Secrets 구조: `[premium]` 섹션, `access_codes` 배열 (src/.streamlit/secrets.toml)
 
 **v5.1.0 (2026-01-04):** ⭐ 웹 앱 캐싱 시스템 개선 및 UI 개선
 - 🔧 **파일 수정 시간 기반 동적 캐싱 구현**: CSV 파일 변경 시 자동 캐시 갱신
