@@ -163,7 +163,17 @@ def show_premium_unlock_ui():
 
         # Secrets에서 코드 목록 로드
         try:
-            valid_codes = st.secrets.get("premium", {}).get("access_codes", [])
+            # Streamlit Cloud Secrets 접근 방식 개선
+            if "premium" in st.secrets:
+                valid_codes = st.secrets["premium"]["access_codes"]
+            else:
+                st.error("❌ Secrets 설정이 없습니다. 관리자에게 문의하세요.")
+                st.info("""
+                **디버그 정보:**
+                - Secrets에 `[premium]` 섹션이 없습니다.
+                - Streamlit Cloud Settings → Secrets에서 설정을 확인하세요.
+                """)
+                return
 
             # 입력 코드 정규화 (대문자, 공백 제거)
             normalized_input = code_input.upper().strip()
@@ -181,6 +191,13 @@ def show_premium_unlock_ui():
                 st.rerun()
             else:
                 st.error("❌ 유효하지 않은 액세스 코드입니다. 다시 확인해주세요.")
+
+                # 디버그 정보 (서버에서만)
+                if not is_local_environment():
+                    with st.expander("🔍 디버그 정보 (관리자용)"):
+                        st.write(f"입력된 코드: `{normalized_input}`")
+                        st.write(f"유효한 코드 개수: {len(valid_codes)}개")
+                        st.write(f"첫 3개 코드: {valid_codes[:3]}")
 
         except Exception as e:
             st.error(f"❌ 인증 중 오류가 발생했습니다: {str(e)}")
