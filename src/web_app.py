@@ -228,28 +228,33 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Google Analytics & AdSense 설정
-GA_TRACKING_ID = "G-ZHK9R4TXT7"  # ⚠️ 본인의 Google Analytics ID로 변경하세요
+# Google Tag Manager & AdSense 설정
+GTM_ID = "GTM-NMVDF7NW"  # ✅ Google Tag Manager ID 확인됨
 ADSENSE_CLIENT_ID = "pub-5460734625020304"  # ✅ 확인됨
 
 def inject_analytics(page_name=""):
-    """각 페이지에 Google Analytics와 AdSense 코드 삽입
+    """각 페이지에 Google Tag Manager와 AdSense 코드 삽입
 
     Args:
         page_name: 페이지 이름 (예: "home", "recommendation", "analysis")
     """
-    # Google Analytics 추적 코드
-    ga_script = f"""
-    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_TRACKING_ID}"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){{dataLayer.push(arguments);}}
-      gtag('js', new Date());
-      gtag('config', '{GA_TRACKING_ID}', {{
-        'page_title': '{page_name}',
-        'page_path': '/{page_name.lower().replace(" ", "_")}'
-      }});
-    </script>
+    # Google Tag Manager 코드 (Head)
+    gtm_head_script = f"""
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){{w[l]=w[l]||[];w[l].push({{'gtm.start':
+    new Date().getTime(),event:'gtm.js'}});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    }})(window,document,'script','dataLayer','{GTM_ID}');</script>
+    <!-- End Google Tag Manager -->
+    """
+
+    # Google Tag Manager (Body/noscript)
+    gtm_body_script = f"""
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id={GTM_ID}"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     """
 
     # AdSense 자동 광고 코드
@@ -259,7 +264,8 @@ def inject_analytics(page_name=""):
     """
 
     # 페이지에 삽입
-    st.markdown(ga_script, unsafe_allow_html=True)
+    st.markdown(gtm_head_script, unsafe_allow_html=True)
+    st.markdown(gtm_body_script, unsafe_allow_html=True)
     st.markdown(adsense_script, unsafe_allow_html=True)
 
 # 캐시 데이터 로딩 (파일 수정 시간 기반 동적 로딩)
