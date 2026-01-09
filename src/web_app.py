@@ -109,17 +109,19 @@ def check_premium_access():
     Returns:
         bool: True면 접근 허용, False면 차단
     """
-    # 1. 로컬 환경이면 무조건 허용
-    if is_local_environment():
+    # 1. 개발자 모드 체크 (환경변수로 제어)
+    # 로컬 개발 시 테스트 목적으로만 사용
+    # 사용법: export LOTTO_DEV_MODE=true
+    if os.getenv('LOTTO_DEV_MODE', '').lower() == 'true':
         st.session_state.premium_unlocked = True
-        st.session_state.premium_mode = 'local'
+        st.session_state.premium_mode = 'dev'
         return True
 
     # 2. 이미 인증된 세션이면 허용
     if st.session_state.get('premium_unlocked', False):
         return True
 
-    # 3. 코드 입력 필요
+    # 3. 코드 입력 필요 (로컬/서버 모두 동일)
     return False
 
 
@@ -182,7 +184,40 @@ def show_premium_unlock_ui():
 
         except Exception as e:
             st.error(f"❌ 인증 중 오류가 발생했습니다: {str(e)}")
-            st.info("💡 로컬 환경에서는 모든 기능을 무료로 사용할 수 있습니다.")
+
+            # 로컬 환경이면 Secrets 설정 안내
+            if is_local_environment():
+                st.warning("""
+                ⚠️ **Secrets 파일 확인 필요**
+
+                로컬 환경에서는 `src/.streamlit/secrets.toml` 파일이 필요합니다.
+
+                파일 예시:
+                ```toml
+                [premium]
+                access_codes = [
+                  "PREM-XXXX-XXXX",
+                ]
+                ```
+                """)
+            else:
+                st.info("💡 관리자에게 문의하세요.")
+
+    # 개발자 모드 안내 (로컬 환경용)
+    if is_local_environment():
+        st.divider()
+        st.info("""
+        💡 **로컬 개발자 모드**
+
+        테스트 목적으로 액세스 코드 입력을 건너뛰려면:
+
+        ```bash
+        export LOTTO_DEV_MODE=true
+        ./run_web.sh
+        ```
+
+        또는 `src/.streamlit/secrets.toml` 파일에서 유효한 코드를 사용하세요.
+        """)
 
 
 # 페이지 설정
@@ -2746,10 +2781,12 @@ def main():
     if 'premium_mode' not in st.session_state:
         st.session_state.premium_mode = None
 
-    # 로컬 환경이면 자동으로 프리미엄 활성화
-    if is_local_environment():
+    # 개발자 모드 체크 (환경변수로 제어)
+    # 로컬/서버 모두 기본적으로 액세스 코드 필요
+    # 개발자 테스트 시에만: export LOTTO_DEV_MODE=true
+    if os.getenv('LOTTO_DEV_MODE', '').lower() == 'true':
         st.session_state.premium_unlocked = True
-        st.session_state.premium_mode = 'local'
+        st.session_state.premium_mode = 'dev'
 
     # 데이터 로드 (파일 수정 시간 기반 캐싱)
     try:
