@@ -229,36 +229,38 @@ st.set_page_config(
 )
 
 # Google Analytics & AdSense 설정
-GA_TRACKING_ID = "G-ZHK9R4TXT7"
-ADSENSE_CLIENT_ID = "ca-pub-5460734625020304"
+GA_TRACKING_ID = "G-ZHK9R4TXT7"  # ⚠️ 본인의 Google Analytics ID로 변경하세요
+ADSENSE_CLIENT_ID = "pub-5460734625020304"  # ✅ 확인됨
 
-# Google Analytics + AdSense 확인 코드 주입
-head_scripts = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <!-- Google AdSense 확인 메타 태그 -->
-    <meta name="google-adsense-account" content="{ADSENSE_CLIENT_ID}">
+def inject_analytics(page_name=""):
+    """각 페이지에 Google Analytics와 AdSense 코드 삽입
 
-    <!-- Google Analytics -->
+    Args:
+        page_name: 페이지 이름 (예: "home", "recommendation", "analysis")
+    """
+    # Google Analytics 추적 코드
+    ga_script = f"""
     <script async src="https://www.googletagmanager.com/gtag/js?id={GA_TRACKING_ID}"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){{dataLayer.push(arguments);}}
       gtag('js', new Date());
-      gtag('config', '{GA_TRACKING_ID}');
+      gtag('config', '{GA_TRACKING_ID}', {{
+        'page_title': '{page_name}',
+        'page_path': '/{page_name.lower().replace(" ", "_")}'
+      }});
     </script>
+    """
 
-    <!-- Google AdSense -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={ADSENSE_CLIENT_ID}"
+    # AdSense 자동 광고 코드
+    adsense_script = f"""
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-{ADSENSE_CLIENT_ID}"
          crossorigin="anonymous"></script>
-</head>
-<body></body>
-</html>
-"""
+    """
 
-# HTML head에 주입 (한 번만 실행)
-components.html(head_scripts, height=0)
+    # 페이지에 삽입
+    st.markdown(ga_script, unsafe_allow_html=True)
+    st.markdown(adsense_script, unsafe_allow_html=True)
 
 # 캐시 데이터 로딩 (파일 수정 시간 기반 동적 로딩)
 @st.cache_data(ttl=60)  # 60초마다 캐시 갱신
@@ -395,6 +397,7 @@ def sidebar(loader):
 # 홈 페이지
 def home_page(loader):
     """홈 페이지"""
+    inject_analytics("Home")
     st.title("🎰 로또 645 데이터 분석 & 번호 추천 시스템")
 
     # 2칼럼 레이아웃: 왼쪽 광고 + 오른쪽 콘텐츠
@@ -507,6 +510,7 @@ def home_page(loader):
 # 데이터 탐색 페이지
 def data_exploration_page(loader):
     """데이터 탐색 페이지"""
+    inject_analytics("Data Exploration")
     st.title("📊 데이터 탐색")
 
     tab1, tab2, tab3 = st.tabs(["기본 통계", "시계열 분석", "패턴 분석"])
@@ -662,6 +666,7 @@ def data_exploration_page(loader):
 # 번호 추천 페이지
 def recommendation_page(loader, model, recommender):
     """번호 추천 페이지"""
+    inject_analytics("Number Recommendation")
     st.title("🎯 번호 추천")
 
     st.markdown("""
@@ -882,6 +887,7 @@ def recommendation_page(loader, model, recommender):
 # 번호 분석 페이지
 def number_analysis_page(loader, model):
     """특정 번호 분석 페이지"""
+    inject_analytics("Number Analysis")
     st.title("🔍 번호 분석")
 
     st.markdown("특정 번호의 상세한 통계와 특징을 분석합니다.")
@@ -975,6 +981,7 @@ def number_analysis_page(loader, model):
 # 예측 모델 페이지
 def prediction_model_page(loader, model):
     """예측 모델 인사이트 페이지"""
+    inject_analytics("Prediction Model")
     st.title("🤖 예측 모델 인사이트")
 
     st.markdown("""
@@ -1064,6 +1071,7 @@ def prediction_model_page(loader, model):
 # 그리드 패턴 분석 페이지
 def grid_pattern_page(loader):
     """그리드 패턴 분석 페이지"""
+    inject_analytics("Grid Pattern")
     st.title("🎨 복권 용지 그리드 패턴 분석")
 
     st.markdown("""
@@ -1306,6 +1314,7 @@ def grid_pattern_page(loader):
 # 이미지 패턴 분석 페이지
 def image_pattern_page(loader):
     """이미지 패턴 분석 페이지"""
+    inject_analytics("Image Pattern")
     st.title("🖼️ 복권 용지 이미지 패턴 분석")
 
     st.markdown("""
@@ -1555,6 +1564,7 @@ def image_pattern_page(loader):
 # 번호 테마 페이지
 def number_theme_page(loader, model, recommender, file_mtime):
     """번호 테마 페이지 (코어 번호, 고정 번호, 신뢰도)"""
+    inject_analytics("Number Theme")
     st.title("🎲 번호 테마")
 
     st.markdown("""
@@ -1980,6 +1990,7 @@ def number_theme_page(loader, model, recommender, file_mtime):
 # 백테스팅 결과 페이지
 def backtesting_page(loader):
     """백테스팅 결과 페이지 - 알고리즘 성능 검증"""
+    inject_analytics("Backtesting")
     import json
     from pathlib import Path
     from backtesting_system import BacktestingSystem
@@ -2400,6 +2411,7 @@ def backtesting_page(loader):
 # 데이터 업데이트 페이지
 def data_update_page(loader):
     """데이터 업데이트 페이지 - 자동 크롤링 + 수동 입력"""
+    inject_analytics("Data Update")
     st.title("🔄 데이터 업데이트")
 
     # 현재 데이터 상태 표시
