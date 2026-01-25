@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-01-08T22:38:16.542649",
+  "strategy": "score",
+  "weights": {
+    "freq_weight": 30.0,
+    "trend_weight": 30.0,
+    "absence_weight": 20.0,
+    "hotness_weight": 20.0
+  },
+  "score": 15.5,
+  "optimization_history": []
+}

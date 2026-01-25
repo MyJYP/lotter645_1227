@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+output/charts/*.png
+output/reports/*.md
+output/**/*.html
+images/
+
+# 민감한 정보
+.env
+credentials.json
+config.ini
+ADSENSE_SETUP_GUIDE.md
+
+# 블로그 연재 계획 (비공개)
+BLOG_SERIES_PLAN.md
+Blog/
+
+# 프리미엄 기능 관련 민감 정보
+PREMIUM_SETUP.md
+premium_codes.txt
+.streamlit/secrets.toml
+**/.streamlit/secrets.toml
+
+# 로그
+*.log
+
+# 임시 파일
+tmp/
+temp/
+
+# 백테스팅 캐시 (로컬에만 유지)
+Data/backtesting_cache/*
+
+# 백테스팅 최신 결과는 커밋 허용 (배포용)
+!Data/backtesting_cache/
+!Data/backtesting_cache/optimal_weights_score.json
+
+# 프라이빗 레파지토리 관련 파일 (공개 레파지토리에서 제외)
+.gitignore.private
+setup_private_repo.sh
+sync_to_private.sh
+etup_private_repo_auto.sh
+verify_repo_security.sh
+DUAL_REPOSITORY_SETUP.md
+PRIVATE_REPO_SETUP_GUIDE.md
+QUICK_START.md
+private/
+SWITCH_TO_SSH.md
+
