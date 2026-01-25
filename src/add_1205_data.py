@@ -25,7 +25,7 @@ draw_data_1205 = {
 }
 
 def main():
-    csv_path = "Data/645_251227.csv"
+    csv_path = "./../Data/645_251227.csv"
     updater = DataUpdater(csv_path)
 
     print("="*60)

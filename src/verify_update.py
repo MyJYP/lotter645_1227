@@ -12,7 +12,7 @@ def main():
     print("="*60)
 
     # 데이터 로드
-    loader = LottoDataLoader("Data/645_251227.csv")
+    loader = LottoDataLoader("./../Data/645_251227.csv")
     loader.load_data()
     loader.preprocess()
     loader.extract_numbers()

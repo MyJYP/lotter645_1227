@@ -26,7 +26,7 @@ git add .
 git commit -m "Initial commit: Lotto 645 Analyzer with 8 features"
 
 # GitHub 리포지토리 연결 (YOUR-USERNAME를 본인 GitHub 아이디로 변경)
-git remote add origin https://github.com/YOUR-USERNAME/lotto645-analyzer.git
+git remote add origin https://github.com/MyJYP/lotter645_1227.git
 
 # 업로드
 git branch -M main
@@ -39,7 +39,7 @@ git push -u origin main
 2. GitHub 계정으로 로그인
 3. "New app" 클릭
 4. 다음 정보 입력:
-   - **Repository**: YOUR-USERNAME/lotto645-analyzer
+   - **Repository**: MyJYP/lotter645_1227
    - **Branch**: main
    - **Main file path**: src/web_app.py
 5. "Deploy!" 클릭
@@ -124,6 +124,6 @@ streamlit run src/web_app.py
 
 ## 📚 참고 자료
 
-- [Streamlit Cloud 공식 문서](https://docs.streamlit.io/streamlit-community-cloud)
-- [Streamlit 포럼](https://discuss.streamlit.io/)
-- [GitHub 도움말](https://docs.github.com/)
+- Streamlit Cloud 공식 문서
+- Streamlit 포럼
+- GitHub 도움말

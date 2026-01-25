@@ -79,7 +79,7 @@ git commit -m "feat: Add Lotto 645 Analyzer with 8 pages
 
 ```bash
 # 원격 리포지토리 연결 (YOUR-USERNAME을 본인 것으로 변경)
-git remote add origin https://github.com/YOUR-USERNAME/lotto645-analyzer.git
+git remote add origin https://github.com/MyJYP/lotter645_1227.git
 
 # 업로드
 git branch -M main
@@ -93,7 +93,7 @@ git push -u origin main
 3. "New app" 클릭
 4. 설정:
    ```
-   Repository: YOUR-USERNAME/lotto645-analyzer
+   Repository: MyJYP/lotter645_1227
    Branch: main
    Main file path: src/web_app.py
    ```
@@ -201,9 +201,9 @@ git push -u origin main
 
 ## 📞 도움말
 
-- [Streamlit Community Cloud 문서](https://docs.streamlit.io/streamlit-community-cloud)
-- [Streamlit 포럼](https://discuss.streamlit.io/)
-- [GitHub 도움말](https://docs.github.com/)
+- Streamlit Community Cloud 문서
+- Streamlit 포럼
+- GitHub 도움말
 
 ---
 

@@ -18,7 +18,7 @@ echo ""
 
 # 2. Secrets 파일 확인
 echo "2️⃣  Secrets 파일 확인:"
-SECRETS_FILE="src/.streamlit/secrets.toml"
+SECRETS_FILE="./.streamlit/secrets.toml"
 if [ -f "$SECRETS_FILE" ]; then
     echo "   ✅ $SECRETS_FILE 존재"
     # 첫 3줄만 표시
