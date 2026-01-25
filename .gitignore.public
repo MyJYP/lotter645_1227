@@ -32,6 +32,7 @@ output/**/*.html
 images/
 sync_to_public.sh
 setup_private_repo_auto.sh
+setup_private_repo.sh
 verify_repo_security.sh
 file.tmp
 
