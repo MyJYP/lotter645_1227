@@ -33,6 +33,7 @@ images/
 sync_to_public.sh
 setup_private_repo_auto.sh
 verify_repo_security.sh
+file.tmp
 
 # 민감한 정보
 .env
