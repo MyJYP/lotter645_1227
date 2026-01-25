@@ -344,6 +344,21 @@ def load_lotto_data(_file_mtime=None):
     loader.extract_numbers()
     return loader
 
+def get_app_version():
+    """앱 버전 조회"""
+    try:
+        # 현재 파일(src/web_app.py) 기준 상위 폴더의 VERSION 파일 읽기
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(current_dir)
+        version_path = os.path.join(project_root, "VERSION")
+        
+        if os.path.exists(version_path):
+            with open(version_path, "r", encoding="utf-8") as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    return "v6.1.1" # 기본값
+
 def get_csv_file_mtime():
     """CSV 파일의 수정 시간 반환"""
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -446,6 +461,10 @@ def sidebar(loader):
     st.sidebar.caption("☕ 해외 사용자는 Buy Me a Coffee 이용 (카드/PayPal)")
 
     st.sidebar.markdown("---")
+    
+    # 버전 정보 표시
+    st.sidebar.caption(f"Version: {get_app_version()}")
+    
     st.sidebar.warning(
         """
         ⚠️ **주의사항**
