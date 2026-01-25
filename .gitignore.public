@@ -30,6 +30,7 @@ output/charts/*.png
 output/reports/*.md
 output/**/*.html
 images/
+sync_to_public.sh
 
 # 민감한 정보
 .env
