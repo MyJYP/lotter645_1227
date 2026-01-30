@@ -27,6 +27,7 @@ from core_number_system import CoreNumberSystem
 from text_lottery_ticket import create_lottery_ticket_compact, create_lottery_grid_simple
 from data_updater import DataUpdater
 from text_parser import LottoTextParser
+from my_number_analysis import MyNumberAnalyzer
 import socket
 
 
@@ -392,7 +393,7 @@ def sidebar(loader):
 
     menu = st.sidebar.radio(
         "메뉴 선택",
-        ["🏠 홈", "📊 데이터 탐색", "🎯 번호 추천", "🔍 번호 분석", "🤖 예측 모델", "🎨 그리드 패턴", "🖼️ 이미지 패턴", "🎲 번호 테마", "🔬 백테스팅 결과", "🔄 데이터 업데이트"]
+        ["🏠 홈", "📊 데이터 탐색", "🎯 번호 추천", "🔍 번호 분석", "🤖 예측 모델", "🎨 그리드 패턴", "🖼️ 이미지 패턴", "🎲 번호 테마", "🍀 나의 번호", "🔬 백테스팅 결과", "🔄 데이터 업데이트"]
     )
 
     st.sidebar.markdown("---")
@@ -2072,6 +2073,123 @@ def number_theme_page(loader, model, recommender, file_mtime):
         """)
 
 
+# 나의 번호 페이지 (NEW)
+def my_number_page(loader, model, recommender):
+    """나의 번호 분석 페이지"""
+    inject_analytics("My Numbers")
+    inject_custom_css()
+    st.title("🍀 나의 번호 분석")
+    
+    st.markdown("""
+    내가 선택한 번호의 **과거 당첨 이력**을 확인하고,
+    알고리즘을 통해 **당첨 확률을 높이는 방법**을 진단받으세요.
+    """)
+    
+    # 분석기 초기화
+    analyzer = MyNumberAnalyzer(loader, model, recommender)
+    
+    # 번호 입력
+    st.markdown("### 🔢 번호 입력")
+    
+    if 'my_numbers' not in st.session_state:
+        st.session_state.my_numbers = []
+        
+    selected_numbers = st.multiselect(
+        "6개 번호를 선택하세요",
+        options=list(range(1, 46)),
+        default=st.session_state.my_numbers if len(st.session_state.my_numbers) == 6 else [],
+        max_selections=6
+    )
+    
+    if len(selected_numbers) == 6:
+        st.session_state.my_numbers = selected_numbers
+        
+        tab1, tab2 = st.tabs(["📜 당첨 연대기", "🚀 확률 높이기"])
+        
+        # 탭 1: 당첨 연대기
+        with tab1:
+            st.subheader("📜 나의 번호 당첨 연대기")
+            
+            with st.spinner("과거 당첨 이력 분석 중..."):
+                result = analyzer.analyze_history(selected_numbers)
+                
+                # 요약 메트릭
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("총 당첨 횟수", f"{sum(result['win_counts'].values())}회")
+                with col2:
+                    best_rank = min([r for r, c in result['win_counts'].items() if c > 0], default=0)
+                    rank_text = f"{best_rank}등" if best_rank > 0 else "없음"
+                    st.metric("최고 등수", rank_text)
+                with col3:
+                    st.metric("총 당첨금", f"{result['total_prize']:,}원")
+                with col4:
+                    st.metric("가상 수익률", f"{result['profit_rate']:.1f}%", 
+                             delta_color="normal" if result['profit_rate'] >= 0 else "inverse")
+                    
+                # 등수별 횟수 차트
+                counts_df = pd.DataFrame([
+                    {'등수': f'{r}등', '횟수': c} 
+                    for r, c in sorted(result['win_counts'].items()) if r > 0
+                ])
+                
+                if not counts_df.empty:
+                    fig = px.bar(counts_df, x='등수', y='횟수', title='등수별 당첨 횟수',
+                                color='횟수', color_continuous_scale='Viridis')
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # 상세 이력
+                st.markdown("##### 📅 상세 당첨 이력")
+                if result['history']:
+                    history_df = pd.DataFrame(result['history'])
+                    history_df['당첨번호'] = history_df['matched_numbers'].apply(lambda x: ', '.join(map(str, x)))
+                    history_df['보너스'] = history_df['bonus_matched'].apply(lambda x: '✅' if x else '-')
+                    
+                    st.dataframe(
+                        history_df[['round', 'date', 'rank', 'prize', 'matched_count', '당첨번호', '보너스']],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                else:
+                    st.info("아쉽게도 과거 당첨 이력이 없습니다.")
+                    
+        # 탭 2: 확률 높이기
+        with tab2:
+            st.subheader("🚀 당첨 확률 높이기 (알고리즘 진단)")
+            
+            with st.spinner("알고리즘 진단 중..."):
+                diagnosis = analyzer.diagnose_and_boost(selected_numbers)
+                
+                st.metric("현재 조합 점수", f"{diagnosis['current_score']:.1f}점")
+                
+                # 약점 분석
+                weakest = diagnosis['weakest']
+                st.warning(f"⚠️ **약점 발견**: 선택한 번호 중 **{weakest}번**의 알고리즘 점수가 가장 낮습니다.")
+                
+                # 개선 제안
+                st.markdown("### 💡 개선 제안")
+                
+                if diagnosis['recommendations']:
+                    for i, rec in enumerate(diagnosis['recommendations'], 1):
+                        with st.expander(f"제안 {i}: {rec['out']}번 ➡️ {rec['in']}번 교체 (점수 +{rec['score_diff']:.1f})", expanded=(i==1)):
+                            col_a, col_b, col_c = st.columns([1, 1, 2])
+                            with col_a:
+                                st.markdown(f"<div style='color:red;font-weight:bold;text-align:center'>OUT<br><h1>{rec['out']}</h1></div>", unsafe_allow_html=True)
+                            with col_b:
+                                st.markdown(f"<div style='color:green;font-weight:bold;text-align:center'>IN<br><h1>{rec['in']}</h1></div>", unsafe_allow_html=True)
+                            with col_c:
+                                st.markdown(f"""
+                                **예상 효과:**
+                                - 조합 점수: {diagnosis['current_score']:.1f} → **{rec['new_score']:.1f}**
+                                - {rec['in']}번은 현재 알고리즘 평가 상위권 번호입니다.
+                                """)
+                else:
+                    st.success("🎉 훌륭합니다! 현재 조합은 이미 최적의 상태에 가깝습니다.")
+
+    else:
+        st.info("👈 위에서 6개의 번호를 모두 선택해주세요.")
+
+
 # 백테스팅 결과 표시 함수 (재사용)
 def display_backtesting_results(loader, match_threshold, cache_dir):
     """백테스팅 결과 표시 (재사용 가능한 함수)"""
@@ -3125,6 +3243,8 @@ def main():
         image_pattern_page(loader)
     elif menu == "🎲 번호 테마":
         number_theme_page(loader, model, recommender, file_mtime)
+    elif menu == "🍀 나의 번호":
+        my_number_page(loader, model, recommender)
     elif menu == "🔬 백테스팅 결과":
         backtesting_page(loader)
     elif menu == "🔄 데이터 업데이트":
