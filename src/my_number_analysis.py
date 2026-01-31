@@ -18,7 +18,19 @@ class MyNumberAnalyzer:
         self.model = model
         self.recommender = recommender
         self.df = loader.df
-        self.numbers_df = loader.numbers_df
+        
+        # numbers_df에 당첨금 정보가 포함되어 있지 않을 수 있으므로 병합 처리
+        self.numbers_df = loader.numbers_df.copy()
+        
+        # 당첨금 컬럼 확인 및 병합
+        required_cols = ['1등 당첨액', '2등 당첨액', '3등 당첨액', '4등 당첨액', '5등 당첨액']
+        missing_cols = [col for col in required_cols if col not in self.numbers_df.columns]
+        
+        if missing_cols:
+            # df에서 해당 컬럼 가져오기 (회차 기준)
+            cols_to_merge = ['회차'] + [col for col in missing_cols if col in self.df.columns]
+            if len(cols_to_merge) > 1:
+                self.numbers_df = pd.merge(self.numbers_df, self.df[cols_to_merge], on='회차', how='left')
 
     def analyze_history(self, my_numbers):
         """나의 번호 당첨 연대기 분석"""
@@ -138,4 +150,33 @@ class MyNumberAnalyzer:
             'details': details,
             'weakest': weakest_num,
             'recommendations': recommendations[:3] # 상위 3개 제안
+        }
+
+    def analyze_patterns(self, my_numbers):
+        """번호 조합의 기본 패턴 분석"""
+        sorted_nums = sorted(my_numbers)
+        
+        # 1. 연속 번호
+        consecutive = []
+        for i in range(len(sorted_nums)-1):
+            if sorted_nums[i+1] == sorted_nums[i] + 1:
+                consecutive.append((sorted_nums[i], sorted_nums[i+1]))
+        
+        # 2. 구간 분포
+        low = sum(1 for n in sorted_nums if 1 <= n <= 15)
+        mid = sum(1 for n in sorted_nums if 16 <= n <= 30)
+        high = sum(1 for n in sorted_nums if 31 <= n <= 45)
+        
+        # 3. 홀짝
+        odd = sum(1 for n in sorted_nums if n % 2 == 1)
+        even = 6 - odd
+        
+        # 4. 합계
+        total = sum(sorted_nums)
+        
+        return {
+            'consecutive': consecutive,
+            'section': (low, mid, high),
+            'odd_even': (odd, even),
+            'sum': total
         }
