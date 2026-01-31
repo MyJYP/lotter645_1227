@@ -180,3 +180,32 @@ class MyNumberAnalyzer:
             'odd_even': (odd, even),
             'sum': total
         }
+
+    def analyze_patterns(self, my_numbers):
+        """번호 조합의 기본 패턴 분석"""
+        sorted_nums = sorted(my_numbers)
+        
+        # 1. 연속 번호
+        consecutive = []
+        for i in range(len(sorted_nums)-1):
+            if sorted_nums[i+1] == sorted_nums[i] + 1:
+                consecutive.append((sorted_nums[i], sorted_nums[i+1]))
+        
+        # 2. 구간 분포
+        low = sum(1 for n in sorted_nums if 1 <= n <= 15)
+        mid = sum(1 for n in sorted_nums if 16 <= n <= 30)
+        high = sum(1 for n in sorted_nums if 31 <= n <= 45)
+        
+        # 3. 홀짝
+        odd = sum(1 for n in sorted_nums if n % 2 == 1)
+        even = 6 - odd
+        
+        # 4. 합계
+        total = sum(sorted_nums)
+        
+        return {
+            'consecutive': consecutive,
+            'section': (low, mid, high),
+            'odd_even': (odd, even),
+            'sum': total
+        }
