@@ -2088,103 +2088,22 @@ def my_number_page(loader, model, recommender):
     # 분석기 초기화
     analyzer = MyNumberAnalyzer(loader, model, recommender)
     
-    # 세션 상태 초기화
+    # 번호 입력
+    st.markdown("### 🔢 번호 입력")
+    
     if 'my_numbers' not in st.session_state:
         st.session_state.my_numbers = []
-
-    # 번호 토글 콜백 함수
-    def toggle_number(n):
-        if n in st.session_state.my_numbers:
-            st.session_state.my_numbers.remove(n)
-        else:
-            if len(st.session_state.my_numbers) < 6:
-                st.session_state.my_numbers.append(n)
-            else:
-                st.toast("최대 6개까지만 선택할 수 있습니다.", icon="⚠️")
-
-    # 번호 입력 UI (복권 용지 스타일)
-    st.markdown("### 🔢 번호 선택 (터치하여 마킹)")
-    
-    # 선택된 번호 표시 및 초기화
-    col_display, col_reset = st.columns([4, 1])
-    
-    with col_display:
-        if st.session_state.my_numbers:
-            sorted_nums = sorted(st.session_state.my_numbers)
-            html_balls = '<div class="lotto-ball-container" style="justify-content: flex-start;">'
-            for num in sorted_nums:
-                if 1 <= num <= 15: color = "#FF6B6B"
-                elif 16 <= num <= 30: color = "#4ECDC4"
-                else: color = "#45B7D1"
-                html_balls += f'<div class="lotto-ball" style="background-color:{color}; width:40px; height:40px; line-height:40px; font-size:18px;">{num}</div>'
-            html_balls += '</div>'
-            st.markdown(html_balls, unsafe_allow_html=True)
-        else:
-            st.info("아래 번호를 클릭하여 6개를 선택해주세요.")
-            
-    with col_reset:
-        if st.button("🔄 초기화", use_container_width=True):
-            st.session_state.my_numbers = []
-            st.rerun()
-
-    # 7x7 그리드 버튼
-    for row in range(7):
-        cols = st.columns(7)
-        for col in range(7):
-            num = row * 7 + col + 1
-            if num <= 45:
-                with cols[col]:
-                    is_selected = num in st.session_state.my_numbers
-                    st.button(
-                        f"{num}",
-                        key=f"btn_lotto_{num}",
-                        type="primary" if is_selected else "secondary",
-                        use_container_width=True,
-                        on_click=toggle_number,
-                        args=(num,)
-                    )
-    
-    st.markdown("---")
-    
-    selected_numbers = st.session_state.my_numbers
+        
+    selected_numbers = st.multiselect(
+        "6개 번호를 선택하세요",
+        options=list(range(1, 46)),
+        default=st.session_state.my_numbers if len(st.session_state.my_numbers) == 6 else [],
+        max_selections=6
+    )
     
     if len(selected_numbers) == 6:
-        # 패턴 분석 결과 표시 (탭 위에 배치)
-        with st.expander("🔍 선택한 번호 패턴 분석", expanded=True):
-            patterns = analyzer.analyze_patterns(selected_numbers)
-            
-            p_col1, p_col2, p_col3, p_col4 = st.columns(4)
-            with p_col1:
-                st.metric("총합", patterns['sum'])
-                # 로또 합계 평균 범위 대략 100~175 사이가 일반적
-                if 100 <= patterns['sum'] <= 175:
-                    st.caption("✅ 일반적 범위")
-                else:
-                    st.caption("⚠️ 평균 범위 밖")
-            
-            with p_col2:
-                odd, even = patterns['odd_even']
-                st.metric("홀짝 비율", f"{odd}:{even}")
-                if 2 <= odd <= 4:
-                    st.caption("✅ 균형 잡힘")
-                else:
-                    st.caption("⚠️ 쏠림 현상")
-            
-            with p_col3:
-                l, m, h = patterns['section']
-                st.metric("구간 분포", f"{l}:{m}:{h}")
-                st.caption("저(1-15):중(16-30):고(31-45)")
-            
-            with p_col4:
-                cons = patterns['consecutive']
-                if cons:
-                    cons_str = ", ".join([f"{a}-{b}" for a, b in cons])
-                    st.metric("연속 번호", f"{len(cons)}쌍")
-                    st.caption(cons_str)
-                else:
-                    st.metric("연속 번호", "없음")
-                    st.caption("연속된 번호 없음")
-
+        st.session_state.my_numbers = selected_numbers
+        
         tab1, tab2 = st.tabs(["📜 당첨 연대기", "🚀 확률 높이기"])
         
         # 탭 1: 당첨 연대기
