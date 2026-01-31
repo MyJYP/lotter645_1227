@@ -20,7 +20,7 @@ class DataUpdater:
             csv_path: CSV 파일 경로
         """
         self.csv_path = Path(csv_path)
-        self.base_url = "https://m.dhlottery.co.kr/lt645/result"
+        self.base_url = "https://www.dhlottery.co.kr/gameResult.do?method=byWin"
 
     def get_current_latest_round(self):
         """현재 CSV 파일의 최신 회차 반환"""
@@ -45,7 +45,7 @@ class DataUpdater:
         try:
             # URL 구성
             if round_num:
-                url = f"{self.base_url}?drwNo={round_num}"
+                url = f"{self.base_url}&drwNo={round_num}"
             else:
                 url = self.base_url
 
@@ -73,38 +73,64 @@ class DataUpdater:
 
     def _parse_draw_page(self, soup):
         """
-        HTML에서 당첨 정보 파싱
-
-        Note: 실제 웹사이트 HTML 구조를 분석하여 수정 필요
-        현재는 기본 구조만 제공
+        HTML에서 당첨 정보 파싱 (동행복권 데스크탑 사이트 기준)
         """
         try:
-            # 회차 추출 (예시)
-            round_text = soup.find('h2', class_='round').text  # 실제 선택자로 수정 필요
+            # 회차 추출
+            # <div class="win_result"><h4><strong>1000회</strong> 당첨결과</h4>...</div>
+            round_element = soup.select_one('div.win_result h4 strong')
+            if not round_element:
+                return None
+            round_text = round_element.text
             round_num = int(re.search(r'(\d+)', round_text).group(1))
 
             # 날짜 추출
-            date_text = soup.find('span', class_='date').text
+            # <p class="desc">(2022년 01월 29일 추첨)</p>
+            date_element = soup.select_one('div.win_result p.desc')
+            date_text = date_element.text
+            date_match = re.search(r'(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일', date_text)
+            if date_match:
+                date_str = f"{date_match.group(1)}.{date_match.group(2).zfill(2)}.{date_match.group(3).zfill(2)}"
+            else:
+                date_str = datetime.now().strftime('%Y.%m.%d')
 
             # 당첨번호 추출
+            # <div class="num win"> ... <span class="ball_645 lrg ball1">2</span> ... </div>
             numbers = []
-            number_divs = soup.find_all('div', class_='number')  # 실제 선택자로 수정 필요
-            for div in number_divs[:6]:
-                numbers.append(int(div.text.strip()))
+            number_spans = soup.select('div.num.win p span.ball_645')
+            for span in number_spans:
+                numbers.append(int(span.text))
 
             # 보너스 번호
-            bonus = int(soup.find('div', class_='bonus').text.strip())
+            # <div class="num bonus"> ... <span class="ball_645 lrg ball2">19</span> ... </div>
+            bonus_span = soup.select_one('div.num.bonus p span.ball_645')
+            bonus = int(bonus_span.text)
 
             # 당첨금 정보 (1~5등)
             prize_data = {}
-            for rank in range(1, 6):
-                # 실제 HTML 구조에 맞게 수정 필요
-                prize_data[f'{rank}등 당첨자수'] = 0
-                prize_data[f'{rank}등 당첨액'] = 0
+            try:
+                # 테이블 파싱: <table class="tbl_data">
+                table = soup.select_one('table.tbl_data')
+                if table:
+                    rows = table.select('tbody tr')
+                    for i, row in enumerate(rows):
+                        if i >= 5: break # 1~5등까지만
+                        cols = row.select('td')
+                        # cols[0]: 등위(텍스트), cols[1]: 총당첨금, cols[2]: 당첨자수, cols[3]: 1인당 당첨금
+                        if len(cols) >= 4:
+                            winners = int(re.sub(r'[^\d]', '', cols[2].text))
+                            amount = int(re.sub(r'[^\d]', '', cols[3].text)) # 1인당 당첨금 사용
+                            prize_data[f'{i+1}등 당첨자수'] = winners
+                            prize_data[f'{i+1}등 당첨액'] = amount
+            except Exception as e:
+                print(f"당첨금 파싱 오류 (기본값 사용): {e}")
+                for rank in range(1, 6):
+                    prize_data[f'{rank}등 당첨자수'] = 0
+                    prize_data[f'{rank}등 당첨액'] = 0
 
             return {
                 '회차': round_num,
-                '일자': date_text,
+                '일자': date_str,
                 '당첨번호': numbers,
                 '보너스번호': bonus,
                 **prize_data

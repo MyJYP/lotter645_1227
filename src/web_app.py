@@ -2088,18 +2088,65 @@ def my_number_page(loader, model, recommender):
     # 분석기 초기화
     analyzer = MyNumberAnalyzer(loader, model, recommender)
     
-    # 번호 입력
-    st.markdown("### 🔢 번호 입력")
-    
+    # 세션 상태 초기화
     if 'my_numbers' not in st.session_state:
         st.session_state.my_numbers = []
-        
-    selected_numbers = st.multiselect(
-        "6개 번호를 선택하세요",
-        options=list(range(1, 46)),
-        default=st.session_state.my_numbers if len(st.session_state.my_numbers) == 6 else [],
-        max_selections=6
-    )
+
+    # 번호 토글 콜백 함수
+    def toggle_number(n):
+        if n in st.session_state.my_numbers:
+            st.session_state.my_numbers.remove(n)
+        else:
+            if len(st.session_state.my_numbers) < 6:
+                st.session_state.my_numbers.append(n)
+            else:
+                st.toast("최대 6개까지만 선택할 수 있습니다.", icon="⚠️")
+
+    # 번호 입력 UI (복권 용지 스타일)
+    st.markdown("### 🔢 번호 선택 (터치하여 마킹)")
+    
+    # 선택된 번호 표시 및 초기화
+    col_display, col_reset = st.columns([4, 1])
+    
+    with col_display:
+        if st.session_state.my_numbers:
+            sorted_nums = sorted(st.session_state.my_numbers)
+            html_balls = '<div class="lotto-ball-container" style="justify-content: flex-start;">'
+            for num in sorted_nums:
+                if 1 <= num <= 15: color = "#FF6B6B"
+                elif 16 <= num <= 30: color = "#4ECDC4"
+                else: color = "#45B7D1"
+                html_balls += f'<div class="lotto-ball" style="background-color:{color}; width:40px; height:40px; line-height:40px; font-size:18px;">{num}</div>'
+            html_balls += '</div>'
+            st.markdown(html_balls, unsafe_allow_html=True)
+        else:
+            st.info("아래 번호를 클릭하여 6개를 선택해주세요.")
+            
+    with col_reset:
+        if st.button("🔄 초기화", use_container_width=True):
+            st.session_state.my_numbers = []
+            st.rerun()
+
+    # 7x7 그리드 버튼
+    for row in range(7):
+        cols = st.columns(7)
+        for col in range(7):
+            num = row * 7 + col + 1
+            if num <= 45:
+                with cols[col]:
+                    is_selected = num in st.session_state.my_numbers
+                    st.button(
+                        f"{num}",
+                        key=f"btn_lotto_{num}",
+                        type="primary" if is_selected else "secondary",
+                        use_container_width=True,
+                        on_click=toggle_number,
+                        args=(num,)
+                    )
+    
+    st.markdown("---")
+    
+    selected_numbers = st.session_state.my_numbers
     
     if len(selected_numbers) == 6:
         st.session_state.my_numbers = selected_numbers
@@ -2874,6 +2921,10 @@ def data_update_page(loader):
         - 크롤링이 실패하면 아래 '수동 입력' 탭을 이용해주세요.
         """)
 
+        # 세션 상태 초기화 (크롤링 데이터 저장용)
+        if 'crawled_data' not in st.session_state:
+            st.session_state.crawled_data = None
+
         if st.button("🔄 자동 업데이트 실행", type="primary", use_container_width=True):
             with st.spinner("웹사이트에서 데이터를 가져오는 중..."):
                 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -2890,23 +2941,12 @@ def data_update_page(loader):
                     draw_data = updater.fetch_latest_draw_from_web(next_round)
 
                     if draw_data:
-                        st.success(f"✓ {next_round}회 데이터를 찾았습니다!")
-
-                        # 데이터 표시
-                        st.write(f"**회차**: {draw_data['회차']}")
-                        st.write(f"**일자**: {draw_data['일자']}")
-                        st.write(f"**당첨번호**: {draw_data['당첨번호']}")
-                        st.write(f"**보너스**: {draw_data['보너스번호']}")
-
-                        # CSV 업데이트
-                        if st.button("💾 CSV에 저장하기"):
-                            success, message = updater.update_csv_with_new_draw(draw_data)
-                            if success:
-                                st.success(message)
-                                st.balloons()
-                                st.warning("⚠️ 새로운 데이터를 반영하려면 페이지를 새로고침(F5)하세요.")
-                            else:
-                                st.error(message)
+                        # 가져온 데이터가 요청한 회차와 일치하는지 확인
+                        if draw_data['회차'] == next_round:
+                            st.session_state.crawled_data = draw_data
+                            st.success(f"✓ {next_round}회 데이터를 찾았습니다!")
+                        else:
+                            st.warning(f"⚠️ {next_round}회 데이터를 요청했으나 {draw_data['회차']}회 데이터가 반환되었습니다. (아직 추첨 전일 수 있습니다)")
                     else:
                         st.warning(f"❌ {next_round}회 데이터를 찾을 수 없습니다.")
                         st.info("아직 추첨이 되지 않았거나, 크롤링에 실패했을 수 있습니다.\n\n수동 입력 탭을 이용해주세요.")
@@ -2914,6 +2954,32 @@ def data_update_page(loader):
                 except Exception as e:
                     st.error(f"❌ 오류 발생: {str(e)}")
                     st.info("자동 업데이트 실패 시 아래 '수동 입력' 탭을 이용해주세요.")
+
+        # 크롤링된 데이터가 있으면 표시 및 저장 버튼 활성화
+        if st.session_state.crawled_data:
+            data = st.session_state.crawled_data
+            
+            st.divider()
+            st.markdown(f"### 🎯 {data['회차']}회 당첨 결과")
+            st.write(f"**일자**: {data['일자']}")
+            st.write(f"**당첨번호**: {data['당첨번호']} + {data['보너스번호']}")
+            st.write(f"**1등 당첨금**: {data.get('1등 당첨액', 0):,}원")
+            
+            if st.button("💾 CSV에 저장하기", type="primary", use_container_width=True):
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.dirname(current_dir)
+                csv_path = os.path.join(project_root, "Data", "645_251227.csv")
+                
+                updater = DataUpdater(csv_path)
+                success, message = updater.update_csv_with_new_draw(data)
+                
+                if success:
+                    st.success(message)
+                    st.balloons()
+                    st.session_state.crawled_data = None  # 저장 후 초기화
+                    st.rerun()
+                else:
+                    st.error(message)
 
     # ========== 탭 2: 텍스트 파싱 ==========
     with tab2:
