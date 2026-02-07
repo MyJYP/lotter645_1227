@@ -774,6 +774,7 @@ def recommendation_page(loader, model, recommender):
         strategy = st.selectbox(
             "추천 전략 선택",
             ["⭐ 하이브리드 (최고 품질)",
+             "🗳️ 앙상블 (전략 통합)",
              "⚡ 최적화된 가중치",
              "📊 점수 기반",
              "🎲 확률 가중치",
@@ -816,6 +817,9 @@ def recommendation_page(loader, model, recommender):
             if "하이브리드" in strategy:
                 results = recommender.generate_hybrid(n_combinations, seed=seed, best_only=best_only)
                 st.success("⭐ 하이브리드 전략으로 최고 품질의 번호를 추천했습니다!")
+            elif "앙상블" in strategy:
+                results = recommender.generate_ensemble(n_combinations, seed=seed, best_only=best_only)
+                st.success("🗳️ 5개 전략의 투표 결과를 종합하여 최적의 번호를 선정했습니다!")
             elif "최적화된 가중치" in strategy:
                 results = recommender.generate_by_optimized_weights(n_combinations, seed=seed, best_only=best_only)
                 st.success("⚡ 백테스팅으로 검증된 최적 가중치로 번호를 추천했습니다!")

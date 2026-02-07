@@ -22,6 +22,9 @@ class LottoRecommendationSystem:
         # 그리드 패턴 데이터 초기화 (7x7 그리드)
         self._init_grid_pattern_data()
 
+        # Phase 3: 제외수 필터링 데이터 초기화
+        self._init_phase3_filters()
+
         # 이미지 패턴 분석기 초기화
         from image_pattern_analysis import ImagePatternAnalysis
         self.image_analyzer = ImagePatternAnalysis(self.loader)
@@ -64,6 +67,17 @@ class LottoRecommendationSystem:
             'edge': 0.91,      # 67.7 / 74.0 = 0.91
             'corner': 0.83     # 61.5 / 74.0 = 0.83
         }
+
+    def _init_phase3_filters(self):
+        """Phase 3: 제외수 필터링을 위한 데이터 초기화"""
+        # 1. 과열 번호 (최근 10회차 중 4회 이상 출현)
+        recent_10 = self.model.numbers_df.head(10)
+        recent_nums = []
+        for _, row in recent_10.iterrows():
+            recent_nums.extend(row['당첨번호'])
+        
+        counts = Counter(recent_nums)
+        self.overheated_numbers = {num for num, count in counts.items() if count >= 4}
 
     def _get_grid_zone(self, number):
         """번호가 속한 그리드 구역 반환"""
@@ -243,7 +257,35 @@ class LottoRecommendationSystem:
 
         return score
 
-    def _find_best_combination(self, candidates, n_combinations=1, constraint_func=None, custom_score_func=None):
+    def _check_phase3_constraints(self, combination):
+        """Phase 3: 강력한 제외수 필터링 적용 (고정 모드용)"""
+        # 1. 과열 번호 필터링 (Kill Number)
+        # 과열 번호가 포함되어 있으면 제외 (회귀 법칙: 너무 뜨거운 번호는 식을 가능성 높음)
+        for num in combination:
+            if num in self.overheated_numbers:
+                return False
+
+        # 2. 상극수 포함 여부 (절대 제외)
+        # 조합 내의 모든 쌍을 확인하여 역사적으로 한 번도 같이 안 나온 쌍이 있으면 제외
+        pairs = list(combinations(sorted(combination), 2))
+        for pair in pairs:
+            if pair in self.never_appeared_set:
+                return False
+        
+        # 3. 희박 패턴 제외 (4연속 번호)
+        sorted_nums = sorted(combination)
+        consecutive_count = 0
+        for i in range(len(sorted_nums)-1):
+            if sorted_nums[i+1] == sorted_nums[i] + 1:
+                consecutive_count += 1
+                if consecutive_count >= 3: # 4개 연속 (차이가 1인 횟수가 3번)
+                    return False
+            else:
+                consecutive_count = 0
+                
+        return True
+
+    def _find_best_combination(self, candidates, n_combinations=1, constraint_func=None, custom_score_func=None, apply_phase3=False):
         """최적 조합 탐색 (완전 탐색) - Phase 1 결정론적 엔진"""
         # 후보군이 너무 많으면 조합이 폭발하므로 제한 (22C6 = 74,613, 23C6 = 100,947)
         limit = 22
@@ -258,6 +300,10 @@ class LottoRecommendationSystem:
             if constraint_func and not constraint_func(combo):
                 continue
                 
+            # Phase 3 필터링 (옵션)
+            if apply_phase3 and not self._check_phase3_constraints(combo):
+                continue
+
             # 유효성 검사 (기본)
             if not self._is_valid_combination(combo):
                 continue
@@ -284,7 +330,7 @@ class LottoRecommendationSystem:
             print("  ✨ 최적 조합 모드 (랜덤 제외)")
             # 상위 번호들로 만들 수 있는 모든 조합 중 최고 점수 조합 반환
             top_candidates = self.model.get_top_numbers(max(use_top, 22))
-            return self._find_best_combination(top_candidates, n_combinations)
+            return self._find_best_combination(top_candidates, n_combinations, apply_phase3=True)
 
         # 시드 설정 (고정 모드)
         if seed is not None:
@@ -334,7 +380,7 @@ class LottoRecommendationSystem:
             weights = self.model.get_probability_weights()
             sorted_nums = sorted(range(1, 46), key=lambda x: weights[x], reverse=True)
             top_candidates = sorted_nums[:22]
-            return self._find_best_combination(top_candidates, n_combinations)
+            return self._find_best_combination(top_candidates, n_combinations, apply_phase3=True)
 
         # 시드 설정 (고정 모드)
         if seed is not None:
@@ -387,7 +433,7 @@ class LottoRecommendationSystem:
                 odd = sum(1 for n in combo if n % 2 == 1)
                 return (low, mid, high) == section_pattern and abs(odd - odd_even_pattern[0]) <= 1
             
-            return self._find_best_combination(top_candidates, n_combinations, constraint_func=pattern_constraint)
+            return self._find_best_combination(top_candidates, n_combinations, constraint_func=pattern_constraint, apply_phase3=True)
 
         # 시드 설정 (고정 모드)
         if seed is not None:
@@ -460,7 +506,7 @@ class LottoRecommendationSystem:
                 # 그리드 점수 + 기본 점수
                 return self._calculate_grid_score(combo) + self._calculate_combination_score(combo) * 0.5
                 
-            return self._find_best_combination(top_candidates, n_combinations, custom_score_func=grid_score_func)
+            return self._find_best_combination(top_candidates, n_combinations, custom_score_func=grid_score_func, apply_phase3=True)
 
         # 시드 설정 (고정 모드)
         if seed is not None:
@@ -542,7 +588,7 @@ class LottoRecommendationSystem:
                 score_data = self.image_analyzer.calculate_image_score(combo)
                 return score_data['total_score']
                 
-            return self._find_best_combination(top_candidates, n_combinations, custom_score_func=image_score_func)
+            return self._find_best_combination(top_candidates, n_combinations, custom_score_func=image_score_func, apply_phase3=True)
 
         # 시드 설정 (고정 모드)
         if seed is not None:
@@ -593,7 +639,7 @@ class LottoRecommendationSystem:
             print("  ✨ 최적 조합 모드 (랜덤 제외 - 완전 탐색)")
             # 상위 22개 번호로 확장하여 탐색 (22C6 = 74,613)
             top_candidates = self.model.get_top_numbers(22)
-            return self._find_best_combination(top_candidates, n_combinations)
+            return self._find_best_combination(top_candidates, n_combinations, apply_phase3=True)
 
         # 시드 설정 (고정 모드)
         if seed is not None:
@@ -651,7 +697,7 @@ class LottoRecommendationSystem:
                 # 해당 쌍을 포함하는 조건으로 탐색
                 def pair_constraint(combo):
                     return pair[0] in combo and pair[1] in combo
-                best_combos.extend(self._find_best_combination(top_candidates, 1, constraint_func=pair_constraint))
+                best_combos.extend(self._find_best_combination(top_candidates, 1, constraint_func=pair_constraint, apply_phase3=True))
             
             # 그 중 최고 점수 선택
             best_combos.sort(key=lambda x: self._calculate_combination_score(x), reverse=True)
@@ -777,7 +823,8 @@ class LottoRecommendationSystem:
             def safe_constraint(combo):
                 return sum(1 for n in combo if n in essential_pool) >= 2
                 
-            return self._find_best_combination(candidates, n_combinations, constraint_func=safe_constraint)
+            # 안정형 전략은 핫넘버를 적극 활용하므로 Phase 3의 과열 번호 필터링(제외)을 적용하지 않음 (apply_phase3=False)
+            return self._find_best_combination(candidates, n_combinations, constraint_func=safe_constraint, apply_phase3=False)
         
         # 2. 조합 생성 (필수 그룹 2개 이상 포함)
         combinations_list = []
@@ -871,6 +918,74 @@ class LottoRecommendationSystem:
         # 추천
         temp_recommender = LottoRecommendationSystem(optimized_model)
         return temp_recommender.generate_by_score(n_combinations, seed=seed, best_only=best_only)
+
+    def generate_ensemble(self, n_combinations=5, seed=None, best_only=False):
+        """앙상블 보팅 기반 추천 (Phase 2)
+        
+        5개 전략의 추천 결과를 종합하여 다수결로 선정
+        """
+        print(f"\n🗳️ 앙상블 보팅 추천")
+        
+        strategies = [
+            self.generate_by_probability,
+            self.generate_by_pattern,
+            self.generate_grid_based,
+            self.generate_image_based,
+            self.generate_with_consecutive
+        ]
+        
+        pool = []
+        # 각 전략별로 10개씩 생성하여 후보군 확보
+        for func in strategies:
+            try:
+                # 각 전략의 최적/고정 결과를 수집
+                combos = func(n_combinations=10, seed=seed, best_only=best_only)
+                pool.extend(combos)
+            except Exception as e:
+                print(f"  ⚠️ 전략 실행 중 오류: {e}")
+                
+        # 번호 빈도 분석 (투표)
+        all_numbers = [num for combo in pool for num in combo]
+        counter = Counter(all_numbers)
+        
+        # 정렬 기준: 1.빈도(투표수) 2.알고리즘 점수
+        def sort_key(num):
+            return (counter[num], self.model.number_scores[num]['total_score'])
+            
+        sorted_numbers = sorted(counter.keys(), key=sort_key, reverse=True)
+        print(f"  🗳️ 투표 상위 번호: {sorted_numbers[:10]}")
+        
+        if best_only:
+            print("  ✨ 최적 조합 모드 (앙상블 다수결)")
+            # 투표 상위 15개 번호로 최적 조합 탐색
+            return self._find_best_combination(sorted_numbers[:15], n_combinations, apply_phase3=True)
+            
+        # 시드 설정 (고정 모드)
+        if seed is not None:
+            random.seed(seed)
+            np.random.seed(seed)
+            
+        # 빈도 가중치 기반 샘플링 (상위 25개)
+        candidates = sorted_numbers[:25]
+        weights = [counter[n] for n in candidates]
+        total_w = sum(weights)
+        probs = [w/total_w for w in weights]
+        
+        # _find_best_combination 대신 확률 기반 샘플링 구현 (다양성 위해)
+        return self._find_best_combination(candidates, n_combinations) if best_only else self._sample_weighted(candidates, probs, n_combinations)
+
+    def _sample_weighted(self, candidates, probs, n_combinations):
+        """가중치 기반 샘플링 헬퍼"""
+        results = []
+        attempts = 0
+        while len(results) < n_combinations and attempts < 1000:
+            selected = np.random.choice(candidates, 6, replace=False, p=probs)
+            if self._is_valid_combination(selected):
+                sorted_selected = list(sorted(selected))
+                if sorted_selected not in results:
+                    results.append(sorted_selected)
+            attempts += 1
+        return results
 
     def generate_all_strategies(self, n_per_strategy=3, seed=None):
         """모든 전략으로 번호 생성"""
