@@ -2122,6 +2122,16 @@ def my_number_page(loader, model, recommender):
         else:
             st.info("아래 번호를 클릭하여 6개를 선택해주세요.")
             
+        # 선택 상태 안내 메시지 (NEW)
+        count = len(st.session_state.my_numbers)
+        if count == 0:
+            st.caption("현재 0개 선택됨 (6개 더 선택하세요)")
+        elif count < 6:
+            remaining = 6 - count
+            st.info(f"현재 **{count}개** 선택됨 (**{remaining}개** 더 선택하세요)")
+        else:
+            st.success("🎉 6개 선택 완료! 아래 탭에서 분석 결과를 확인하세요.")
+            
     with col_reset:
         if st.button("🔄 초기화", use_container_width=True):
             st.session_state.my_numbers = []
@@ -2250,6 +2260,13 @@ def my_number_page(loader, model, recommender):
                                 - 조합 점수: {diagnosis['current_score']:.1f} → **{rec['new_score']:.1f}**
                                 - {rec['in']}번은 현재 알고리즘 평가 상위권 번호입니다.
                                 """)
+                                
+                                # 교체 버튼
+                                if st.button(f"🔄 {rec['in']}번으로 교체하기", key=f"swap_{i}", use_container_width=True):
+                                    st.session_state.my_numbers.remove(rec['out'])
+                                    st.session_state.my_numbers.append(rec['in'])
+                                    st.session_state.my_numbers.sort()
+                                    st.rerun()
                 else:
                     st.success("🎉 훌륭합니다! 현재 조합은 이미 최적의 상태에 가깝습니다.")
 
