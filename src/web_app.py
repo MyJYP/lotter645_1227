@@ -358,7 +358,7 @@ def get_app_version():
                 return f.read().strip()
     except Exception:
         pass
-    return "v6.1.1" # 기본값
+    return "v6.2.0" # 기본값
 
 def get_csv_file_mtime():
     """CSV 파일의 수정 시간 반환"""
@@ -817,31 +817,31 @@ def recommendation_page(loader, model, recommender):
                 results = recommender.generate_hybrid(n_combinations, seed=seed, best_only=best_only)
                 st.success("⭐ 하이브리드 전략으로 최고 품질의 번호를 추천했습니다!")
             elif "최적화된 가중치" in strategy:
-                results = recommender.generate_by_optimized_weights(n_combinations, seed=seed)
+                results = recommender.generate_by_optimized_weights(n_combinations, seed=seed, best_only=best_only)
                 st.success("⚡ 백테스팅으로 검증된 최적 가중치로 번호를 추천했습니다!")
             elif "점수" in strategy:
                 results = recommender.generate_by_score(n_combinations, seed=seed, best_only=best_only)
                 st.success("📊 점수 기반으로 상위 번호들을 선정했습니다!")
             elif "확률" in strategy:
-                results = recommender.generate_by_probability(n_combinations, seed=seed)
+                results = recommender.generate_by_probability(n_combinations, seed=seed, best_only=best_only)
                 st.success("🎲 확률 가중치 기반으로 번호를 생성했습니다!")
             elif "패턴" in strategy and "그리드" not in strategy:
-                results = recommender.generate_by_pattern(n_combinations, seed=seed)
+                results = recommender.generate_by_pattern(n_combinations, seed=seed, best_only=best_only)
                 st.success("🔄 빈출 패턴을 활용하여 번호를 생성했습니다!")
             elif "그리드" in strategy:
-                results = recommender.generate_grid_based(n_combinations, seed=seed)
+                results = recommender.generate_grid_based(n_combinations, seed=seed, best_only=best_only)
                 st.success("🎨 그리드 패턴 분석을 기반으로 번호를 생성했습니다!")
             elif "이미지" in strategy:
-                results = recommender.generate_image_based(n_combinations, seed=seed)
+                results = recommender.generate_image_based(n_combinations, seed=seed, best_only=best_only)
                 st.success("🖼️ 이미지 패턴 분석을 기반으로 번호를 생성했습니다!")
             elif "안정형" in strategy:
-                results = recommender.generate_safe_strategy(n_combinations, seed=seed)
+                results = recommender.generate_safe_strategy(n_combinations, seed=seed, best_only=best_only)
                 st.success("🛡️ 최근 핫넘버와 장기 미출현 번호를 조합하여 안정적인 번호를 생성했습니다!")
             elif "연속" in strategy:
-                results = recommender.generate_with_consecutive(n_combinations, seed=seed)
+                results = recommender.generate_with_consecutive(n_combinations, seed=seed, best_only=best_only)
                 st.success("🔢 연속 번호를 포함한 번호를 생성했습니다!")
             else:
-                results = recommender.generate_random(n_combinations, seed=seed)
+                results = recommender.generate_random(n_combinations, seed=seed, best_only=best_only)
                 st.success("🎰 무작위로 번호를 생성했습니다 (대조군)")
 
             # 모드 정보 표시
