@@ -987,6 +987,40 @@ class LottoRecommendationSystem:
             attempts += 1
         return results
 
+    def get_swap_candidates(self, current_combination, number_to_remove, top_n=5):
+        """교체 후보 추천 (Phase 4: 사용자 인터랙티브 튜닝)"""
+        current_score = self._calculate_combination_score(current_combination)
+        remaining_nums = [n for n in current_combination if n != number_to_remove]
+        
+        # 후보군: 상위 45개(전체) 중 현재 조합에 없는 것
+        # (이미 점수순으로 정렬된 상태에서 필터링)
+        candidates = [n for n in self.model.get_top_numbers(45) if n not in current_combination]
+        
+        recommendations = []
+        for cand in candidates:
+            new_combo = sorted(remaining_nums + [cand])
+            
+            # 유효성 검사
+            if not self._is_valid_combination(new_combo):
+                continue
+            
+            # Phase 3 제약조건 확인 (고정 모드 튜닝이므로 안전장치 적용)
+            if not self._check_phase3_constraints(new_combo):
+                continue
+                
+            new_score = self._calculate_combination_score(new_combo)
+            diff = new_score - current_score
+            
+            recommendations.append({
+                'number': cand,
+                'new_score': new_score,
+                'diff': diff
+            })
+            
+        # 점수 높은 순 정렬
+        recommendations.sort(key=lambda x: x['new_score'], reverse=True)
+        return recommendations[:top_n]
+
     def generate_all_strategies(self, n_per_strategy=3, seed=None):
         """모든 전략으로 번호 생성"""
         print("\n" + "="*70)

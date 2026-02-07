@@ -358,7 +358,7 @@ def get_app_version():
                 return f.read().strip()
     except Exception:
         pass
-    return "v6.2.0" # 기본값
+    return "v6.2.1" # 기본값
 
 def get_csv_file_mtime():
     """CSV 파일의 수정 시간 반환"""
@@ -764,6 +764,10 @@ def recommendation_page(loader, model, recommender):
     다양한 전략 중 원하는 방식을 선택하세요!
     """)
 
+    # 세션 상태 초기화 (고정 모드 결과 유지용)
+    if 'fixed_results' not in st.session_state:
+        st.session_state.fixed_results = None
+
     # 설정
     col1, col2, col3 = st.columns([1, 2, 2])
 
@@ -807,7 +811,9 @@ def recommendation_page(loader, model, recommender):
         else:
             st.caption("🎲 매번 새로운 번호")
 
-    if st.button("🎯 번호 추천 받기", type="primary", use_container_width=True):
+    generate_clicked = st.button("🎯 번호 추천 받기", type="primary", use_container_width=True)
+
+    if generate_clicked:
         with st.spinner("번호 생성 중..."):
             # 시드 설정 (고정 모드일 경우) - 다음 회차 번호를 시드로 사용
             next_round = int(loader.df['회차'].max()) + 1
@@ -851,12 +857,23 @@ def recommendation_page(loader, model, recommender):
             # 모드 정보 표시
             if fixed_mode:
                 st.info(f"🔒 **고정 모드**: 다음 회차({next_round}회)에 대해 항상 동일한 번호를 추천합니다.")
+                st.session_state.fixed_results = results # 결과 저장
+            else:
+                st.session_state.fixed_results = None # 랜덤 모드는 저장 안 함
 
-        # 결과 표시
+    # 출력할 결과 결정 (버튼 클릭 직후 또는 저장된 고정 결과)
+    display_results = []
+    if generate_clicked and 'results' in locals():
+        display_results = results
+    elif fixed_mode and st.session_state.fixed_results:
+        display_results = st.session_state.fixed_results
+
+    # 결과 표시
+    if display_results:
         st.markdown("---")
         st.subheader("🎰 추천 번호")
 
-        for i, combo in enumerate(results, 1):
+        for i, combo in enumerate(display_results, 1):
             sorted_combo = sorted(combo)
 
             # 번호 분석
@@ -918,10 +935,45 @@ def recommendation_page(loader, model, recommender):
 
             st.markdown("---")
 
+        # 🔧 사용자 인터랙티브 튜닝 (고정 모드일 때만 표시)
+        if fixed_mode and display_results:
+            st.subheader("🔧 번호 튜닝 (Semi-Auto)")
+            st.info("추천된 번호 중 마음에 들지 않는 번호를 선택하면, 알고리즘이 최적의 대안을 제안합니다.")
+            
+            # 첫 번째 조합만 튜닝 가능하도록 (고정 모드는 보통 1개 조합에 집중)
+            target_combo_idx = 0
+            current_combo = display_results[target_combo_idx]
+            
+            col_tune1, col_tune2 = st.columns([1, 2])
+            
+            with col_tune1:
+                remove_num = st.selectbox("교체할 번호 선택", current_combo, key="tune_remove")
+                
+            with col_tune2:
+                # 교체 후보 추천
+                candidates = recommender.get_swap_candidates(current_combo, remove_num)
+                
+                if candidates:
+                    candidate_options = {f"{c['number']}번 (점수 변화: {c['diff']:+.1f})": c['number'] for c in candidates}
+                    selected_option = st.selectbox("대체할 번호 선택 (추천순)", list(candidate_options.keys()), key="tune_add")
+                    selected_cand = candidate_options[selected_option]
+                    
+                    if st.button("🔄 교체하기", key="tune_apply"):
+                        # 교체 실행
+                        new_combo = sorted([n for n in current_combo if n != remove_num] + [selected_cand])
+                        # 세션 상태 업데이트
+                        st.session_state.fixed_results[target_combo_idx] = new_combo
+                        st.success(f"✅ {remove_num}번을 {selected_cand}번으로 교체했습니다!")
+                        st.rerun()
+                else:
+                    st.warning("⚠️ 적절한 교체 후보가 없습니다 (제약 조건 미충족).")
+            
+            st.markdown("---")
+
         # 전체 통계
         st.subheader("📈 추천 번호 통계")
 
-        all_nums = [n for combo in results for n in combo]
+        all_nums = [n for combo in display_results for n in combo]
         freq = Counter(all_nums)
 
         col1, col2, col3 = st.columns(3)
@@ -931,15 +983,15 @@ def recommendation_page(loader, model, recommender):
                      f"{freq.most_common(1)[0][0]}번 ({freq.most_common(1)[0][1]}회)")
 
         with col2:
-            avg_sum = sum(sum(combo) for combo in results) / len(results)
+            avg_sum = sum(sum(combo) for combo in display_results) / len(display_results)
             st.metric("평균 합계", f"{avg_sum:.1f}")
 
         with col3:
-            has_consecutive = sum(1 for combo in results if any(
+            has_consecutive = sum(1 for combo in display_results if any(
                 sorted(combo)[i+1] == sorted(combo)[i] + 1
                 for i in range(len(sorted(combo))-1)
             ))
-            st.metric("연속 번호 포함 비율", f"{has_consecutive/len(results)*100:.0f}%")
+            st.metric("연속 번호 포함 비율", f"{has_consecutive/len(display_results)*100:.0f}%")
 
         # 추천 후 후원 안내 (전환율이 가장 높은 시점)
         st.markdown("---")
