@@ -28,6 +28,7 @@ from text_lottery_ticket import create_lottery_ticket_compact, create_lottery_gr
 from data_updater import DataUpdater
 from text_parser import LottoTextParser
 from my_number_analysis import MyNumberAnalyzer
+from history_manager import HistoryManager
 import socket
 
 
@@ -758,6 +759,9 @@ def recommendation_page(loader, model, recommender):
     inject_analytics("Number Recommendation")
     inject_custom_css()
     st.title("🎯 번호 추천")
+    
+    # HistoryManager 초기화
+    history_manager = HistoryManager()
 
     st.markdown("""
     머신러닝과 통계적 패턴 분석을 기반으로 번호를 추천합니다.
@@ -968,6 +972,17 @@ def recommendation_page(loader, model, recommender):
                 else:
                     st.warning("⚠️ 적절한 교체 후보가 없습니다 (제약 조건 미충족).")
             
+            # 저장 버튼 추가 (Phase 2)
+            st.markdown("---")
+            col_save1, col_save2 = st.columns([1, 3])
+            with col_save1:
+                if st.button("💾 이 조합 저장하기", key="save_fixed_combo", use_container_width=True):
+                    target_combo = display_results[0]
+                    if history_manager.save_history(next_round, strategy, target_combo):
+                        st.toast(f"✅ {next_round}회차 조합이 저장되었습니다!", icon="💾")
+                    else:
+                        st.error("저장 중 오류가 발생했습니다.")
+            
             st.markdown("---")
 
         # 전체 통계
@@ -1040,6 +1055,33 @@ def recommendation_page(loader, model, recommender):
                 unsafe_allow_html=True
             )
             st.caption("☕ 해외 사용자는 Buy Me a Coffee 이용 (카드/PayPal)")
+
+    # 이력 조회 섹션 (Phase 2)
+    st.markdown("---")
+    with st.expander("📜 저장된 고정 모드 이력 보기", expanded=False):
+        history_df = history_manager.load_history()
+        if not history_df.empty:
+            st.dataframe(
+                history_df[['round', 'date', 'strategy', 'numbers', 'memo']],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "round": "회차",
+                    "date": "저장 일시",
+                    "strategy": "전략",
+                    "numbers": "번호 조합",
+                    "memo": "메모"
+                }
+            )
+            
+            # 가장 최근 이력 삭제 버튼
+            if st.button("🗑️ 가장 최근 이력 삭제", key="delete_latest_history"):
+                latest_idx = history_df.index[0]
+                if history_manager.delete_history(latest_idx):
+                    st.toast("삭제되었습니다.", icon="🗑️")
+                    st.rerun()
+        else:
+            st.info("아직 저장된 이력이 없습니다.")
 
 
 # 번호 분석 페이지
@@ -2896,64 +2938,153 @@ def display_retraining_ui(loader, match_threshold, cache_dir):
         n_recommendations = st.slider("추천 개수", min_value=1, max_value=10, value=5, key=f"n_recommendations_{match_threshold}")
 
         if st.button("🔄 재학습 & 추천 생성", type="primary", key=f"retrain_{match_threshold}"):
-            with st.spinner("모델 재학습 중..."):
-                # 최적 가중치로 모델 재학습
-                model = LottoPredictionModel(loader, weights=weights)
+            # Phase 1: 스마트 데이터 동기화 및 재학습 프로세스 개선
+            with st.status("🔄 최신 데이터 확인 및 모델 재학습 중...", expanded=True) as status:
+                
+                # 1. 데이터 동기화
+                status.write("🌐 최신 데이터 확인 중...")
+                
+                try:
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
+                    project_root = os.path.dirname(current_dir)
+                    csv_path = os.path.join(project_root, "Data", "645_251227.csv")
+                    
+                    updater = DataUpdater(csv_path)
+                    latest_round = int(loader.df['회차'].max())
+                    next_round = latest_round + 1
+                    
+                    draw_data = updater.fetch_latest_draw_from_web(next_round)
+                    
+                    if draw_data and draw_data['회차'] == next_round:
+                        status.write(f"✨ {next_round}회 최신 데이터 발견! 업데이트 중...")
+                        success, msg = updater.update_csv_with_new_draw(draw_data)
+                        
+                        if success:
+                            status.write("✅ 데이터 업데이트 완료! 데이터를 다시 로드합니다.")
+                            # 데이터 리로딩 (캐시 갱신)
+                            file_mtime = get_csv_file_mtime()
+                            loader = load_lotto_data(file_mtime)
+                        else:
+                            status.write(f"⚠️ 업데이트 실패: {msg}")
+                    else:
+                        status.write("✅ 현재 데이터가 최신입니다.")
+                        
+                except Exception as e:
+                    status.write(f"⚠️ 데이터 확인 중 오류 발생 (기존 데이터로 진행): {e}")
+
+                # 2. 가중치 미세 조정 (Phase 3)
+                status.write("⚙️ 가중치 미세 조정 중 (Auto Fine-tuning)...")
+                
+                from backtesting_system import BacktestingSystem
+                from weight_optimizer import WeightOptimizer
+                
+                # 데이터 경로 설정
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.dirname(current_dir)
+                csv_path = os.path.join(project_root, "Data", "645_251227.csv")
+                
+                # 백테스팅 시스템 및 최적화기 초기화
+                backtester = BacktestingSystem(csv_path, cache_dir=str(cache_dir), match_threshold=match_threshold)
+                optimizer = WeightOptimizer(backtester, strategy='score', match_threshold=match_threshold)
+                
+                # 최근 50회차 데이터로 미세 조정 (10회 시도)
+                trainable_rounds = backtester.get_trainable_rounds(min_train_rounds=50)
+                tuning_rounds = trainable_rounds[-50:] if len(trainable_rounds) > 50 else trainable_rounds
+                refined_weights, _ = optimizer.fine_tune_weights(weights, tuning_rounds, n_trials=10)
+
+                # 3. 모델 재학습 (조정된 가중치 사용)
+                status.write("🤖 모델 재학습 중...")
+                model = LottoPredictionModel(loader, weights=refined_weights)
                 model.train_all_patterns()
 
-                # 추천
+                # 성능 검증 (Phase 2)
+                status.write("📊 모델 성능 검증 중...")
+                perf = model.evaluate_recent_performance(10)
+
+                # 3. 추천 생성
+                status.write("🎯 번호 추천 생성 중...")
                 recommender = LottoRecommendationSystem(model)
                 recommendations = recommender.generate_by_score(n_recommendations, seed=42)
 
-                st.success("✅ 추천 완료!")
+                status.update(label="✅ 재학습 및 추천 완료!", state="complete", expanded=False)
 
-                # 추천 결과 표시
-                for i, combo in enumerate(recommendations, 1):
-                    with st.container():
-                        st.markdown(f"### 추천 {i}")
+            st.success("✅ 추천 완료!")
+            
+            # 모델 성능 검증 대시보드 (Phase 2)
+            st.markdown("---")
+            st.subheader("📊 모델 성능 검증 (최근 10회차 적합도)")
+            st.caption("현재 모델의 Top 6 번호가 최근 10회차 결과와 얼마나 일치하는지 분석한 결과입니다.")
+            
+            m1, m2, m3 = st.columns(3)
+            m1.metric("평균 당첨 개수", f"{perf['avg_match']:.1f}개")
+            m2.metric("가상 수익률 (ROI)", f"{perf['roi']:.1f}%", 
+                     delta_color="normal" if perf['roi'] >= 0 else "inverse")
+            m3.metric("총 당첨금 (가상)", f"{perf['total_prize']:,}원")
+            
+            # 상세 차트
+            perf_df = pd.DataFrame(perf['details'])
+            
+            fig = go.Figure()
+            fig.add_trace(go.Bar(x=perf_df['round'], y=perf_df['matched'], name='매칭 개수', marker_color='#667eea'))
+            fig.add_trace(go.Scatter(x=perf_df['round'], y=perf_df['avg_score'], name='모델 확신도(점수)', yaxis='y2', line=dict(color='#FF6B6B', width=3)))
+            
+            fig.update_layout(
+                title='회차별 매칭 개수 및 모델 확신도',
+                yaxis=dict(title='매칭 개수', range=[0, 6.5]),
+                yaxis2=dict(title='평균 점수', overlaying='y', side='right'),
+                xaxis=dict(title='회차', type='category'),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
-                        # 번호 카드
-                        html_balls = '<div class="lotto-ball-container">'
-                        for num in combo:
-                            # 구간별 색상
-                            if num <= 15:
-                                color = "#FF6B6B"
-                            elif num <= 30:
-                                color = "#4ECDC4"
+            # 추천 결과 표시
+            for i, combo in enumerate(recommendations, 1):
+                with st.container():
+                    st.markdown(f"### 추천 {i}")
+
+                    # 번호 카드
+                    html_balls = '<div class="lotto-ball-container">'
+                    for num in combo:
+                        # 구간별 색상
+                        if num <= 15:
+                            color = "#FF6B6B"
+                        elif num <= 30:
+                            color = "#4ECDC4"
+                        else:
+                            color = "#45B7D1"
+                        html_balls += f'<div class="lotto-ball" style="background-color:{color};">{num}</div>'
+                    html_balls += '</div>'
+                    st.markdown(html_balls, unsafe_allow_html=True)
+
+                    # 통계
+                    combo_sum = sum(combo)
+                    odd_count = sum(1 for n in combo if n % 2 == 1)
+                    even_count = 6 - odd_count
+                    low = sum(1 for n in combo if 1 <= n <= 15)
+                    mid = sum(1 for n in combo if 16 <= n <= 30)
+                    high = sum(1 for n in combo if 31 <= n <= 45)
+
+                    # 연속 번호 확인
+                    consecutive = []
+                    for j in range(len(combo)-1):
+                        if combo[j+1] == combo[j] + 1:
+                            if not consecutive or consecutive[-1][-1] != combo[j]:
+                                consecutive.append([combo[j], combo[j+1]])
                             else:
-                                color = "#45B7D1"
-                            html_balls += f'<div class="lotto-ball" style="background-color:{color};">{num}</div>'
-                        html_balls += '</div>'
-                        st.markdown(html_balls, unsafe_allow_html=True)
+                                consecutive[-1].append(combo[j+1])
 
-                        # 통계
-                        combo_sum = sum(combo)
-                        odd_count = sum(1 for n in combo if n % 2 == 1)
-                        even_count = 6 - odd_count
-                        low = sum(1 for n in combo if 1 <= n <= 15)
-                        mid = sum(1 for n in combo if 16 <= n <= 30)
-                        high = sum(1 for n in combo if 31 <= n <= 45)
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("합계", combo_sum)
+                    with col2:
+                        st.metric("홀짝", f"{odd_count}:{even_count}")
+                    with col3:
+                        st.metric("구간", f"{low}-{mid}-{high}")
+                    with col4:
+                        st.metric("연속", f"{len(consecutive)}쌍" if consecutive else "없음")
 
-                        # 연속 번호 확인
-                        consecutive = []
-                        for j in range(len(combo)-1):
-                            if combo[j+1] == combo[j] + 1:
-                                if not consecutive or consecutive[-1][-1] != combo[j]:
-                                    consecutive.append([combo[j], combo[j+1]])
-                                else:
-                                    consecutive[-1].append(combo[j+1])
-
-                        col1, col2, col3, col4 = st.columns(4)
-                        with col1:
-                            st.metric("합계", combo_sum)
-                        with col2:
-                            st.metric("홀짝", f"{odd_count}:{even_count}")
-                        with col3:
-                            st.metric("구간", f"{low}-{mid}-{high}")
-                        with col4:
-                            st.metric("연속", f"{len(consecutive)}쌍" if consecutive else "없음")
-
-                        st.markdown("---")
+                    st.markdown("---")
     else:
         st.warning(f"먼저 '⚙️ 가중치 최적화' 탭에서 {match_threshold}개 기준 백테스팅을 실행해주세요.")
 

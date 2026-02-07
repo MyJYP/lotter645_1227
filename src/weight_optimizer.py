@@ -163,6 +163,58 @@ class WeightOptimizer:
 
         return best_weights, best_score
 
+    def fine_tune_weights(self, base_weights, rounds, n_trials=20, n_combinations=10, step=3.0):
+        """가중치 미세 조정 (Fine-tuning) - Phase 3
+
+        기존 가중치 주변을 무작위로 탐색하여 최적값 보정
+        
+        Args:
+            base_weights: 기준 가중치
+            rounds: 백테스팅할 회차 리스트
+            n_trials: 시도 횟수 (기본 20)
+            n_combinations: 추천 조합 개수
+            step: 변동 범위 (±step)
+
+        Returns:
+            (best_weights, best_score): 최적 가중치 및 점수
+        """
+        print(f"\n🔧 가중치 미세 조정 시작 (시도: {n_trials}회, 범위: ±{step})")
+        print("="*70)
+        
+        best_weights = base_weights.copy()
+        best_score = self.evaluate_weights(base_weights, rounds, n_combinations)
+        
+        print(f"기준 점수: {best_score:.2f}%")
+        
+        for i in range(n_trials):
+            # 현재 최적 가중치 주변에서 무작위 변동
+            test_weights = best_weights.copy()
+            
+            # 모든 가중치를 소폭 조정 (Local Perturbation)
+            for key in test_weights.keys():
+                delta = random.uniform(-step, step)
+                test_weights[key] += delta
+                
+                # 범위 체크
+                min_val, max_val = self.weight_ranges[key]
+                test_weights[key] = max(min_val, min(test_weights[key], max_val))
+            
+            score = self.evaluate_weights(test_weights, rounds, n_combinations)
+            
+            if score > best_score:
+                print(f"[{i+1}/{n_trials}] {score:.2f}% (개선됨!)")
+                best_score = score
+                best_weights = test_weights
+            else:
+                if (i+1) % 5 == 0:
+                    print(f"[{i+1}/{n_trials}] {score:.2f}%")
+                    
+        print(f"\n" + "="*70)
+        print(f"✅ 미세 조정 완료")
+        print(f"최종 점수: {best_score:.2f}%")
+        
+        return best_weights, best_score
+
     def optimize(self, rounds, n_random_trials=30, refine=True, n_combinations=10):
         """전체 최적화 프로세스
 

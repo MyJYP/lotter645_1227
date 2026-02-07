@@ -338,6 +338,74 @@ class LottoPredictionModel:
 
         return weights
 
+    def evaluate_recent_performance(self, n_rounds=10):
+        """최근 회차에 대한 모델 성능(적합도) 평가
+        
+        현재 학습된 모델의 상위 추천 번호(Top 6)가 최근 회차 결과와 
+        얼마나 일치하는지 분석하여 모델의 최신 트렌드 반영도를 측정합니다.
+        """
+        print(f"\n📊 최근 {n_rounds}회차 성능 평가 중...")
+        
+        recent_data = self.numbers_df.head(n_rounds)
+        
+        # 현재 모델의 Top 6 번호 (고정)
+        top_6 = set(self.get_top_numbers(6))
+        
+        results = []
+        total_prize = 0
+        total_cost = n_rounds * 1000
+        
+        # 등수별 당첨금 (대략적인 평균값)
+        prizes = {
+            1: 2000000000,
+            2: 50000000,
+            3: 1500000,
+            4: 50000,
+            5: 5000,
+            0: 0
+        }
+        
+        for _, row in recent_data.iterrows():
+            round_num = row['회차']
+            winning_nums = set(row['당첨번호'])
+            bonus_num = row['보너스번호']
+            
+            # 매칭 개수 확인
+            matched = len(winning_nums & top_6)
+            is_bonus = bonus_num in top_6
+            
+            # 등수 판별
+            rank = 0
+            if matched == 6: rank = 1
+            elif matched == 5 and is_bonus: rank = 2
+            elif matched == 5: rank = 3
+            elif matched == 4: rank = 4
+            elif matched == 3: rank = 5
+            
+            prize = prizes.get(rank, 0)
+            total_prize += prize
+            
+            # 당첨 번호들의 평균 점수 (모델의 확신도)
+            avg_score = np.mean([self.number_scores[n]['total_score'] for n in winning_nums]) if hasattr(self, 'number_scores') else 0
+            
+            results.append({
+                'round': round_num,
+                'matched': matched,
+                'rank': rank,
+                'prize': prize,
+                'avg_score': avg_score
+            })
+            
+        avg_match = sum(r['matched'] for r in results) / n_rounds
+        roi = (total_prize - total_cost) / total_cost * 100 if total_cost > 0 else 0
+        
+        return {
+            'avg_match': avg_match,
+            'roi': roi,
+            'total_prize': total_prize,
+            'details': results
+        }
+
 
 def main():
     """테스트용 메인 함수"""
